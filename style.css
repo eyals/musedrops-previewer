@@ -240,13 +240,33 @@ body {
     text-align: right;
 }
 
-/* Swipe hint */
-.swipe-hint {
+/* Intro slide */
+.intro-slide .episode-content {
+    padding-top: 80px;
+}
+
+.intro-slide .episode-title {
+    font-size: 50px;
+    line-height: 1;
+    text-shadow: none;
+}
+
+.intro-subtitle {
+    font-size: 18px;
+    font-weight: 400;
+    opacity: 1;
+    margin-top: 12px;
+}
+
+.intro-hint {
     position: absolute;
-    bottom: 50%;
-    right: 12px;
-    opacity: 0.5;
-    font-size: 12px;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 32px;
+    padding-bottom: max(48px, env(safe-area-inset-bottom));
+    text-align: center;
+    font-size: 16px;
+    opacity: 0.8;
+    z-index: 3;
 }

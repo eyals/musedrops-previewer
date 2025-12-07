@@ -4,7 +4,7 @@
     let episodes = [];
     let channelTitle = '';
     let channelImage = '';
-    let currentIndex = 0;
+    let currentIndex = -1; // Start at intro
     let currentAudio = null;
     let isPlaying = false;
 
@@ -57,6 +57,25 @@
         });
 
         return { title, image, episodes: episodeList };
+    }
+
+    // Create intro slide
+    function createIntroSlide() {
+        const slide = document.createElement('div');
+        slide.className = 'episode-slide intro-slide';
+        slide.dataset.index = -1;
+
+        slide.innerHTML = `
+            <img class="episode-bg" src="${channelImage}" alt="">
+            <div class="episode-overlay"></div>
+            <div class="episode-content">
+                <h1 class="episode-title">${channelTitle}</h1>
+                <div class="intro-subtitle">A Musedrops Production</div>
+            </div>
+            <div class="intro-hint">← Swipe left to start</div>
+        `;
+
+        return slide;
     }
 
     // Create episode slide
@@ -241,11 +260,11 @@
             }
 
             if (diff < -threshold && currentIndex < episodes.length - 1) {
-                // Swipe left - next
-                goToSlide(currentIndex + 1);
-            } else if (diff > threshold && currentIndex > 0) {
-                // Swipe right - previous
-                goToSlide(currentIndex - 1);
+                // Swipe left - next (continue playing if was playing)
+                goToSlide(currentIndex + 1, isPlaying);
+            } else if (diff > threshold && currentIndex > -1) {
+                // Swipe right - previous (continue playing if was playing)
+                goToSlide(currentIndex - 1, isPlaying && currentIndex > 0);
             }
         });
     }
@@ -263,10 +282,14 @@
         // Create new slide if needed
         let newSlide = container.querySelector(`.episode-slide[data-index="${newIndex}"]`);
         if (!newSlide) {
-            newSlide = createSlide(episodes[newIndex], newIndex);
+            if (newIndex === -1) {
+                newSlide = createIntroSlide();
+            } else {
+                newSlide = createSlide(episodes[newIndex], newIndex);
+                setupPlayer(newSlide);
+            }
             newSlide.classList.add(newIndex > currentIndex ? 'next' : 'prev');
             container.appendChild(newSlide);
-            setupPlayer(newSlide);
             // Force reflow
             newSlide.offsetHeight;
         }
@@ -307,10 +330,9 @@
 
         const container = document.getElementById('player-container');
 
-        // Start with first (latest) episode
-        const firstSlide = createSlide(episodes[0], 0);
-        container.appendChild(firstSlide);
-        setupPlayer(firstSlide);
+        // Start with intro slide
+        const introSlide = createIntroSlide();
+        container.appendChild(introSlide);
         setupSwipe(container);
 
         container.classList.remove('hidden');
