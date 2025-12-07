@@ -1,15 +1,20 @@
 (function() {
     const API_BASE = 'https://api-dev.musedrops.com/shows';
 
-    let currentAudio = null;
-    let currentPlayBtn = null;
-    let currentCard = null;
     let episodes = [];
+    let channelTitle = '';
     let channelImage = '';
+    let currentIndex = 0;
+    let currentAudio = null;
+    let isPlaying = false;
 
-    // SVG icons (outline style)
-    const playIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-    const pauseIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+    // SVG icons
+    const icons = {
+        play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+        pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
+        rewind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>',
+        forward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>'
+    };
 
     // Get show name from URL
     function getShowName() {
@@ -20,12 +25,13 @@
         return null;
     }
 
-    // Format time (seconds to MM:SS)
+    // Format time
     function formatTime(seconds) {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        const mins = Math.floor(Math.abs(seconds) / 60);
+        const secs = Math.floor(Math.abs(seconds) % 60);
+        const sign = seconds < 0 ? '-' : '';
+        return `${sign}${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
     // Parse RSS XML
@@ -36,127 +42,113 @@
         const channel = doc.querySelector('channel');
         if (!channel) throw new Error('Invalid RSS feed');
 
-        // Channel info
         const title = channel.querySelector('title')?.textContent || 'Untitled';
-        const description = channel.querySelector('description')?.textContent || '';
         const image = channel.querySelector('image url')?.textContent ||
                      channel.querySelector('itunes\\:image, image')?.getAttribute('href') || '';
 
-        // Episodes
         const items = channel.querySelectorAll('item');
         const episodeList = Array.from(items).map(item => {
-            // Try multiple selectors for itunes:image (namespace handling varies)
             const itunesImage = item.querySelector('itunes\\:image')?.getAttribute('href') ||
-                               item.getElementsByTagName('itunes:image')[0]?.getAttribute('href') ||
-                               '';
+                               item.getElementsByTagName('itunes:image')[0]?.getAttribute('href') || '';
             return {
                 title: item.querySelector('title')?.textContent || 'Untitled',
-                subtitle: item.querySelector('itunes\\:subtitle')?.textContent ||
-                         item.getElementsByTagName('itunes:subtitle')[0]?.textContent ||
-                         item.querySelector('description')?.textContent || '',
                 image: itunesImage,
                 audioUrl: item.querySelector('enclosure')?.getAttribute('url') || ''
             };
         });
 
-        return {
-            title,
-            description,
-            image,
-            episodes: episodeList
-        };
+        return { title, image, episodes: episodeList };
     }
 
-    // Create episode card HTML
-    function createEpisodeCard(episode, index) {
-        const card = document.createElement('div');
-        card.className = 'episode-card';
-        card.dataset.index = index;
+    // Create episode slide
+    function createSlide(episode, index) {
+        const slide = document.createElement('div');
+        slide.className = 'episode-slide';
+        slide.dataset.index = index;
 
         const imgSrc = episode.image || channelImage;
 
-        card.innerHTML = `
-            <div class="episode-image-container">
-                <img class="episode-image" src="${imgSrc}" alt="Episode artwork">
-                <button class="play-btn" aria-label="Play">${playIcon}</button>
-            </div>
+        slide.innerHTML = `
+            <img class="episode-bg" src="${imgSrc}" alt="">
+            <div class="episode-overlay"></div>
             <div class="episode-content">
-                <div class="episode-title">${episode.title}</div>
-                <div class="episode-subtitle">${episode.subtitle}</div>
-                <div class="duration">--:--</div>
-                <div class="player hidden">
+                <div class="show-title">${channelTitle}</div>
+                <h1 class="episode-title">${episode.title}</h1>
+            </div>
+            <div class="player-section">
+                <div class="player-controls">
+                    <button class="control-btn rewind-btn" aria-label="Rewind 10 seconds">${icons.rewind}</button>
+                    <button class="control-btn play-btn" aria-label="Play">${icons.play}</button>
+                    <button class="control-btn forward-btn" aria-label="Forward 10 seconds">${icons.forward}</button>
+                </div>
+                <div class="progress-section">
+                    <span class="time time-current">0:00</span>
                     <div class="progress-bar">
                         <div class="progress-fill"></div>
                     </div>
-                    <span class="time">0:00 / 0:00</span>
+                    <span class="time time-remaining">-0:00</span>
                 </div>
             </div>
             <audio preload="metadata" src="${episode.audioUrl}"></audio>
         `;
 
-        setupPlayer(card, index);
-        return card;
+        return slide;
     }
 
-    // Setup player controls
-    function setupPlayer(card, index) {
-        const audio = card.querySelector('audio');
-        const playBtn = card.querySelector('.play-btn');
-        const progressBar = card.querySelector('.progress-bar');
-        const progressFill = card.querySelector('.progress-fill');
-        const timeDisplay = card.querySelector('.time');
-        const duration = card.querySelector('.duration');
-        const player = card.querySelector('.player');
-
-        function showPlayer() {
-            duration.classList.add('hidden');
-            player.classList.remove('hidden');
-        }
-
-        function hidePlayer() {
-            duration.classList.remove('hidden');
-            player.classList.add('hidden');
-            progressFill.style.width = '0%';
-        }
+    // Setup player for a slide
+    function setupPlayer(slide) {
+        const audio = slide.querySelector('audio');
+        const playBtn = slide.querySelector('.play-btn');
+        const rewindBtn = slide.querySelector('.rewind-btn');
+        const forwardBtn = slide.querySelector('.forward-btn');
+        const progressBar = slide.querySelector('.progress-bar');
+        const progressFill = slide.querySelector('.progress-fill');
+        const timeCurrent = slide.querySelector('.time-current');
+        const timeRemaining = slide.querySelector('.time-remaining');
 
         // Play/Pause
         playBtn.addEventListener('click', () => {
             if (currentAudio && currentAudio !== audio) {
                 currentAudio.pause();
-                currentPlayBtn.innerHTML = playIcon;
-                currentCard.querySelector('.duration').classList.remove('hidden');
-                currentCard.querySelector('.player').classList.add('hidden');
-                currentCard.classList.remove('playing');
+                updatePlayButton(currentAudio.closest('.episode-slide'), false);
             }
 
             if (audio.paused) {
                 audio.play();
-                playBtn.innerHTML = pauseIcon;
-                showPlayer();
-                card.classList.add('playing');
+                isPlaying = true;
                 currentAudio = audio;
-                currentPlayBtn = playBtn;
-                currentCard = card;
+                updatePlayButton(slide, true);
             } else {
                 audio.pause();
-                playBtn.innerHTML = playIcon;
+                isPlaying = false;
+                updatePlayButton(slide, false);
             }
+        });
+
+        // Rewind 10s
+        rewindBtn.addEventListener('click', () => {
+            audio.currentTime = Math.max(0, audio.currentTime - 10);
+        });
+
+        // Forward 10s
+        forwardBtn.addEventListener('click', () => {
+            audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
         });
 
         // Time update
         audio.addEventListener('timeupdate', () => {
             const percent = (audio.currentTime / audio.duration) * 100;
             progressFill.style.width = `${percent}%`;
-            timeDisplay.textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+            timeCurrent.textContent = formatTime(audio.currentTime);
+            timeRemaining.textContent = formatTime(audio.currentTime - audio.duration);
         });
 
         // Loaded metadata
         audio.addEventListener('loadedmetadata', () => {
-            duration.textContent = formatTime(audio.duration);
-            timeDisplay.textContent = `0:00 / ${formatTime(audio.duration)}`;
+            timeRemaining.textContent = formatTime(-audio.duration);
         });
 
-        // Seek (click and touch)
+        // Seek
         function seek(clientX) {
             const rect = progressBar.getBoundingClientRect();
             const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
@@ -167,7 +159,6 @@
 
         progressBar.addEventListener('click', (e) => seek(e.clientX));
 
-        // Touch drag seeking
         let isSeeking = false;
         progressBar.addEventListener('touchstart', (e) => {
             isSeeking = true;
@@ -175,50 +166,142 @@
         }, { passive: true });
 
         progressBar.addEventListener('touchmove', (e) => {
-            if (isSeeking) {
-                seek(e.touches[0].clientX);
-            }
+            if (isSeeking) seek(e.touches[0].clientX);
         }, { passive: true });
 
         progressBar.addEventListener('touchend', () => {
             isSeeking = false;
         });
 
-        // Ended - play next
+        // Ended - go to next
         audio.addEventListener('ended', () => {
-            playBtn.innerHTML = playIcon;
-            hidePlayer();
-            card.classList.remove('playing');
-
-            // Play next episode
-            const nextIndex = index + 1;
-            if (nextIndex < episodes.length) {
-                const nextCard = document.querySelector(`.episode-card[data-index="${nextIndex}"]`);
-                if (nextCard) {
-                    nextCard.querySelector('.play-btn').click();
-                }
+            updatePlayButton(slide, false);
+            if (currentIndex < episodes.length - 1) {
+                goToSlide(currentIndex + 1);
+                // Auto-play next
+                setTimeout(() => {
+                    const nextSlide = document.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+                    if (nextSlide) {
+                        nextSlide.querySelector('.play-btn').click();
+                    }
+                }, 400);
             }
         });
     }
 
-    // Render the page
+    function updatePlayButton(slide, playing) {
+        const playBtn = slide.querySelector('.play-btn');
+        playBtn.innerHTML = playing ? icons.pause : icons.play;
+    }
+
+    // Swipe handling
+    let touchStartX = 0;
+    let touchCurrentX = 0;
+    let isSwiping = false;
+
+    function setupSwipe(container) {
+        container.addEventListener('touchstart', (e) => {
+            // Ignore if touching progress bar
+            if (e.target.closest('.progress-section')) return;
+
+            touchStartX = e.touches[0].clientX;
+            touchCurrentX = touchStartX;
+            isSwiping = true;
+
+            const currentSlide = container.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+            if (currentSlide) currentSlide.classList.add('swiping');
+        }, { passive: true });
+
+        container.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+
+            touchCurrentX = e.touches[0].clientX;
+            const diff = touchCurrentX - touchStartX;
+
+            const currentSlide = container.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+            if (currentSlide) {
+                currentSlide.style.transform = `translateX(${diff}px)`;
+            }
+        }, { passive: true });
+
+        container.addEventListener('touchend', () => {
+            if (!isSwiping) return;
+            isSwiping = false;
+
+            const diff = touchCurrentX - touchStartX;
+            const threshold = window.innerWidth * 0.25;
+
+            const currentSlide = container.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+            if (currentSlide) {
+                currentSlide.classList.remove('swiping');
+                currentSlide.style.transform = '';
+            }
+
+            if (diff < -threshold && currentIndex < episodes.length - 1) {
+                // Swipe left - next
+                goToSlide(currentIndex + 1);
+            } else if (diff > threshold && currentIndex > 0) {
+                // Swipe right - previous
+                goToSlide(currentIndex - 1);
+            }
+        });
+    }
+
+    function goToSlide(newIndex) {
+        const container = document.getElementById('player-container');
+        const oldSlide = container.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+
+        // Stop current audio
+        if (currentAudio) {
+            currentAudio.pause();
+            if (oldSlide) updatePlayButton(oldSlide, false);
+        }
+
+        // Create new slide if needed
+        let newSlide = container.querySelector(`.episode-slide[data-index="${newIndex}"]`);
+        if (!newSlide) {
+            newSlide = createSlide(episodes[newIndex], newIndex);
+            newSlide.classList.add(newIndex > currentIndex ? 'next' : 'prev');
+            container.appendChild(newSlide);
+            setupPlayer(newSlide);
+            // Force reflow
+            newSlide.offsetHeight;
+        }
+
+        // Animate
+        if (oldSlide) {
+            oldSlide.classList.add(newIndex > currentIndex ? 'prev' : 'next');
+        }
+        newSlide.classList.remove('prev', 'next');
+
+        currentIndex = newIndex;
+
+        // Clean up old slides after animation
+        setTimeout(() => {
+            container.querySelectorAll('.episode-slide').forEach(slide => {
+                const idx = parseInt(slide.dataset.index);
+                if (idx !== currentIndex) {
+                    slide.remove();
+                }
+            });
+        }, 350);
+    }
+
+    // Render
     function render(data) {
+        channelTitle = data.title;
         channelImage = data.image;
         episodes = data.episodes;
 
-        // Header
-        document.getElementById('channel-image').src = data.image;
-        document.getElementById('channel-title').textContent = data.title;
-        document.getElementById('channel-description').textContent = data.description;
-        document.getElementById('header').classList.remove('hidden');
+        const container = document.getElementById('player-container');
 
-        // Episodes
-        const container = document.getElementById('episodes');
-        data.episodes.forEach((episode, index) => {
-            container.appendChild(createEpisodeCard(episode, index));
-        });
+        // Start with first (latest) episode
+        const firstSlide = createSlide(episodes[0], 0);
+        container.appendChild(firstSlide);
+        setupPlayer(firstSlide);
+        setupSwipe(container);
+
         container.classList.remove('hidden');
-
         document.getElementById('loading').classList.add('hidden');
     }
 
