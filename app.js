@@ -114,6 +114,59 @@
         return slide;
     }
 
+    // Update Media Session metadata
+    function updateMediaSession(episode, index) {
+        if (!('mediaSession' in navigator)) return;
+
+        const imgSrc = episode.image || channelImage;
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: episode.title,
+            artist: channelTitle,
+            album: channelTitle,
+            artwork: [
+                { src: imgSrc, sizes: '512x512', type: 'image/jpeg' }
+            ]
+        });
+
+        // Handle media controls
+        navigator.mediaSession.setActionHandler('play', () => {
+            if (currentAudio) {
+                currentAudio.play();
+                isPlaying = true;
+                const slide = document.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+                if (slide) updatePlayButton(slide, true);
+            }
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+            if (currentAudio) {
+                currentAudio.pause();
+                isPlaying = false;
+                const slide = document.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
+                if (slide) updatePlayButton(slide, false);
+            }
+        });
+
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+            if (currentIndex > 0) {
+                goToSlide(currentIndex - 1, isPlaying);
+            }
+        });
+
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+            if (currentIndex < episodes.length - 1) {
+                goToSlide(currentIndex + 1, isPlaying);
+            }
+        });
+
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (currentAudio && details.seekTime !== undefined) {
+                currentAudio.currentTime = details.seekTime;
+            }
+        });
+    }
+
     // Setup player for a slide
     function setupPlayer(slide) {
         const audio = slide.querySelector('audio');
@@ -302,8 +355,13 @@
 
         currentIndex = newIndex;
 
+        // Update media session for episode slides
+        if (newIndex >= 0) {
+            updateMediaSession(episodes[newIndex], newIndex);
+        }
+
         // Auto-play if requested
-        if (autoPlay) {
+        if (autoPlay && newIndex >= 0) {
             const audio = newSlide.querySelector('audio');
             audio.play();
             currentAudio = audio;
