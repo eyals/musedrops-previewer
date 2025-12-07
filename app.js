@@ -3,6 +3,7 @@
 
     let currentAudio = null;
     let currentPlayBtn = null;
+    let currentCard = null;
     let episodes = [];
     let channelImage = '';
 
@@ -82,13 +83,12 @@
             <div class="episode-content">
                 <div class="episode-title">${episode.title}</div>
                 <div class="episode-subtitle">${episode.subtitle}</div>
-                <div class="player">
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill"></div>
-                        </div>
-                        <span class="time">0:00 / 0:00</span>
+                <div class="duration">--:--</div>
+                <div class="player hidden">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
                     </div>
+                    <span class="time">0:00 / 0:00</span>
                 </div>
             </div>
             <audio preload="metadata" src="${episode.audioUrl}"></audio>
@@ -105,19 +105,38 @@
         const progressBar = card.querySelector('.progress-bar');
         const progressFill = card.querySelector('.progress-fill');
         const timeDisplay = card.querySelector('.time');
+        const duration = card.querySelector('.duration');
+        const player = card.querySelector('.player');
+
+        function showPlayer() {
+            duration.classList.add('hidden');
+            player.classList.remove('hidden');
+        }
+
+        function hidePlayer() {
+            duration.classList.remove('hidden');
+            player.classList.add('hidden');
+            progressFill.style.width = '0%';
+        }
 
         // Play/Pause
         playBtn.addEventListener('click', () => {
             if (currentAudio && currentAudio !== audio) {
                 currentAudio.pause();
                 currentPlayBtn.innerHTML = playIcon;
+                currentCard.querySelector('.duration').classList.remove('hidden');
+                currentCard.querySelector('.player').classList.add('hidden');
+                currentCard.classList.remove('playing');
             }
 
             if (audio.paused) {
                 audio.play();
                 playBtn.innerHTML = pauseIcon;
+                showPlayer();
+                card.classList.add('playing');
                 currentAudio = audio;
                 currentPlayBtn = playBtn;
+                currentCard = card;
             } else {
                 audio.pause();
                 playBtn.innerHTML = playIcon;
@@ -133,6 +152,7 @@
 
         // Loaded metadata
         audio.addEventListener('loadedmetadata', () => {
+            duration.textContent = formatTime(audio.duration);
             timeDisplay.textContent = `0:00 / ${formatTime(audio.duration)}`;
         });
 
@@ -167,7 +187,8 @@
         // Ended - play next
         audio.addEventListener('ended', () => {
             playBtn.innerHTML = playIcon;
-            progressFill.style.width = '0%';
+            hidePlayer();
+            card.classList.remove('playing');
 
             // Play next episode
             const nextIndex = index + 1;
