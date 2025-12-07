@@ -10,8 +10,7 @@
 
     // SVG icons
     const icons = {
-        play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
-        pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
+        play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
         rewind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>',
         forward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>'
     };
@@ -71,6 +70,8 @@
         slide.innerHTML = `
             <img class="episode-bg" src="${imgSrc}" alt="">
             <div class="episode-overlay"></div>
+            <div class="tap-area"></div>
+            <button class="center-play-btn" aria-label="Play">${icons.play}</button>
             <div class="episode-content">
                 <div class="show-title">${channelTitle}</div>
                 <h1 class="episode-title">${episode.title}</h1>
@@ -78,7 +79,6 @@
             <div class="player-section">
                 <div class="player-controls">
                     <button class="control-btn rewind-btn" aria-label="Rewind 10 seconds">${icons.rewind}</button>
-                    <button class="control-btn play-btn" aria-label="Play">${icons.play}</button>
                     <button class="control-btn forward-btn" aria-label="Forward 10 seconds">${icons.forward}</button>
                 </div>
                 <div class="progress-section">
@@ -98,7 +98,8 @@
     // Setup player for a slide
     function setupPlayer(slide) {
         const audio = slide.querySelector('audio');
-        const playBtn = slide.querySelector('.play-btn');
+        const centerPlayBtn = slide.querySelector('.center-play-btn');
+        const tapArea = slide.querySelector('.tap-area');
         const rewindBtn = slide.querySelector('.rewind-btn');
         const forwardBtn = slide.querySelector('.forward-btn');
         const progressBar = slide.querySelector('.progress-bar');
@@ -106,8 +107,7 @@
         const timeCurrent = slide.querySelector('.time-current');
         const timeRemaining = slide.querySelector('.time-remaining');
 
-        // Play/Pause
-        playBtn.addEventListener('click', () => {
+        function togglePlayback() {
             if (currentAudio && currentAudio !== audio) {
                 currentAudio.pause();
                 updatePlayButton(currentAudio.closest('.episode-slide'), false);
@@ -123,7 +123,13 @@
                 isPlaying = false;
                 updatePlayButton(slide, false);
             }
-        });
+        }
+
+        // Play/Pause from center button
+        centerPlayBtn.addEventListener('click', togglePlayback);
+
+        // Tap anywhere to toggle
+        tapArea.addEventListener('click', togglePlayback);
 
         // Rewind 10s
         rewindBtn.addEventListener('click', () => {
@@ -177,21 +183,18 @@
         audio.addEventListener('ended', () => {
             updatePlayButton(slide, false);
             if (currentIndex < episodes.length - 1) {
-                goToSlide(currentIndex + 1);
-                // Auto-play next
-                setTimeout(() => {
-                    const nextSlide = document.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
-                    if (nextSlide) {
-                        nextSlide.querySelector('.play-btn').click();
-                    }
-                }, 400);
+                goToSlide(currentIndex + 1, true);
             }
         });
     }
 
     function updatePlayButton(slide, playing) {
-        const playBtn = slide.querySelector('.play-btn');
-        playBtn.innerHTML = playing ? icons.pause : icons.play;
+        const centerPlayBtn = slide.querySelector('.center-play-btn');
+        if (playing) {
+            centerPlayBtn.classList.add('hidden');
+        } else {
+            centerPlayBtn.classList.remove('hidden');
+        }
     }
 
     // Swipe handling
@@ -247,7 +250,7 @@
         });
     }
 
-    function goToSlide(newIndex) {
+    function goToSlide(newIndex, autoPlay = false) {
         const container = document.getElementById('player-container');
         const oldSlide = container.querySelector(`.episode-slide[data-index="${currentIndex}"]`);
 
@@ -275,6 +278,15 @@
         newSlide.classList.remove('prev', 'next');
 
         currentIndex = newIndex;
+
+        // Auto-play if requested
+        if (autoPlay) {
+            const audio = newSlide.querySelector('audio');
+            audio.play();
+            currentAudio = audio;
+            isPlaying = true;
+            updatePlayButton(newSlide, true);
+        }
 
         // Clean up old slides after animation
         setTimeout(() => {
