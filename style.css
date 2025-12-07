@@ -1,0 +1,192 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #fff;
+    color: #333;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+    padding: 24px 16px;
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Loading & Error */
+#loading, #error {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+#error {
+    color: #c00;
+}
+
+/* Header */
+header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #eee;
+}
+
+#channel-image {
+    width: 300px;
+    height: 300px;
+    border-radius: 12px;
+    object-fit: cover;
+}
+
+#channel-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#channel-description {
+    color: #666;
+    font-size: 13px;
+}
+
+/* Episodes */
+#episodes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.episode-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    background: #fafafa;
+}
+
+.episode-image-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.episode-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.episode-image-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+.episode-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.episode-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.episode-subtitle {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+/* Audio Player */
+.player {
+    margin-top: auto;
+}
+
+.play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+    z-index: 1;
+}
+
+.play-btn:active {
+    transform: translate(-50%, -50%) scale(0.9);
+}
+
+.play-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.progress-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 50px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #333;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+.time {
+    font-size: 11px;
+    color: #333;
+    font-weight: 500;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    background: #e5e5e5;
+    padding: 3px 6px;
+    border-radius: 4px;
+}
