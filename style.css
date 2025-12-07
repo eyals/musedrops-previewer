@@ -13,11 +13,7 @@ body {
 }
 
 #app {
-    padding: 24px 16px;
-    padding-top: max(24px, env(safe-area-inset-top));
     padding-bottom: max(24px, env(safe-area-inset-bottom));
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
 }
 
 .hidden {
@@ -27,7 +23,9 @@ body {
 /* Loading & Error */
 #loading, #error {
     text-align: center;
-    padding: 60px 20px;
+    padding: 60px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
     color: #666;
 }
 
@@ -37,27 +35,26 @@ body {
 
 /* Header */
 header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
-    padding-bottom: 24px;
     margin-bottom: 24px;
-    border-bottom: 1px solid #eee;
 }
 
 #channel-image {
-    width: 300px;
-    height: 300px;
-    border-radius: 12px;
+    width: 100%;
+    aspect-ratio: 1;
     object-fit: cover;
+}
+
+#channel-info {
+    padding: 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    text-align: center;
 }
 
 #channel-title {
     font-size: 20px;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
 }
 
 #channel-description {
@@ -70,6 +67,9 @@ header {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding: 0 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
 }
 
 .episode-card {
