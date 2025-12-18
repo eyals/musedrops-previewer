@@ -1,9 +1,14 @@
 (function() {
-    const API_BASE = 'https://api-dev.musedrops.com/shows';
+    const API_BASE = 'https://api.musedrops.com';
 
-    let episodes = [];
-    let channelTitle = '';
-    let channelImage = '';
+    let playlist = {
+        stories: [],
+        allStories: [],
+        shows: [],
+        currentShow: null,
+        title: 'Musedrops',
+        image: ''
+    };
     let currentIndex = -1; // Start at intro
     let currentAudio = null;
     let isPlaying = false;
@@ -15,15 +20,6 @@
         forward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>'
     };
 
-    // Get show name from URL
-    function getShowName() {
-        const search = window.location.search;
-        if (search && search.length > 1) {
-            return search.substring(1);
-        }
-        return null;
-    }
-
     // Format time
     function formatTime(seconds) {
         if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
@@ -33,30 +29,115 @@
         return `${sign}${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // Parse RSS XML
-    function parseRSS(xml) {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xml, 'text/xml');
+    // Load all shows and their stories
+    async function loadPlaylist() {
+        // Load shows list
+        const showsResponse = await fetch(`${API_BASE}/shows`);
+        if (!showsResponse.ok) {
+            throw new Error(`Failed to load shows (${showsResponse.status})`);
+        }
+        const showsData = await showsResponse.json();
 
-        const channel = doc.querySelector('channel');
-        if (!channel) throw new Error('Invalid RSS feed');
+        // Handle different response structures
+        const shows = Array.isArray(showsData) ? showsData :
+                     (showsData.data && Array.isArray(showsData.data)) ? showsData.data :
+                     [];
 
-        const title = channel.querySelector('title')?.textContent || 'Untitled';
-        const image = channel.querySelector('image url')?.textContent ||
-                     channel.querySelector('itunes\\:image, image')?.getAttribute('href') || '';
+        if (shows.length === 0) {
+            console.warn('No shows found in response:', showsData);
+            return [];
+        }
 
-        const items = channel.querySelectorAll('item');
-        const episodeList = Array.from(items).map(item => {
-            const itunesImage = item.querySelector('itunes\\:image')?.getAttribute('href') ||
-                               item.getElementsByTagName('itunes:image')[0]?.getAttribute('href') || '';
-            return {
-                title: item.querySelector('title')?.textContent || 'Untitled',
-                image: itunesImage,
-                audioUrl: item.querySelector('enclosure')?.getAttribute('url') || ''
-            };
+        // Load each show's details
+        const allStories = [];
+        const showsList = [];
+
+        for (const show of shows) {
+            if (!show.links?.self) continue;
+
+            try {
+                const showResponse = await fetch(show.links.self);
+                if (!showResponse.ok) continue;
+
+                const showData = await showResponse.json();
+                const showDetails = showData.data || showData;
+
+                // Track show info - prioritize image from /shows API
+                const showInfo = {
+                    id: showDetails.id || show.id || showDetails.title,
+                    title: showDetails.title || show.title || 'Unknown Show',
+                    image: show.imageUrl || show.image_url || show.image || showDetails.imageUrl || showDetails.image_url || showDetails.image || ''
+                };
+                showsList.push(showInfo);
+
+                // Extract stories from the show
+                if (showDetails.stories && Array.isArray(showDetails.stories)) {
+                    const stories = showDetails.stories.map(story => {
+                        // Try different possible image field names
+                        const storyImage = story.image_url || story.image || story.imageUrl ||
+                                         story.thumbnail_url || story.thumbnail ||
+                                         showDetails.image_url || showDetails.image || '';
+
+                        const storyAudio = story.audio_url || story.audioUrl || story.url || '';
+
+                        console.log('Story data:', {
+                            title: story.title,
+                            image: storyImage,
+                            audio: storyAudio,
+                            rawStory: story
+                        });
+
+                        return {
+                            title: story.title || 'Untitled',
+                            image: storyImage,
+                            audioUrl: storyAudio,
+                            published: story.published_at || story.created_at || story.publishedAt || '',
+                            showId: showInfo.id,
+                            showTitle: showInfo.title
+                        };
+                    });
+                    allStories.push(...stories);
+                }
+            } catch (error) {
+                console.warn(`Failed to load show ${show.links.self}:`, error);
+            }
+        }
+
+        // Sort by published date (newer first)
+        allStories.sort((a, b) => {
+            const dateA = new Date(a.published);
+            const dateB = new Date(b.published);
+            return dateB - dateA;
         });
 
-        return { title, image, episodes: episodeList };
+        return { stories: allStories, shows: showsList };
+    }
+
+    // Populate playlist
+    async function populatePlaylist() {
+        const data = await loadPlaylist();
+        playlist.allStories = data.stories;
+        playlist.stories = data.stories;
+        playlist.shows = data.shows;
+
+        // Set playlist title and image from first story if available
+        if (data.stories.length > 0) {
+            playlist.title = data.stories[0].showTitle || 'Musedrops';
+            playlist.image = data.stories[0].image || '';
+        }
+    }
+
+    // Filter playlist by show
+    function filterPlaylist(showId) {
+        if (showId === null) {
+            // Show all stories
+            playlist.stories = playlist.allStories;
+            playlist.currentShow = null;
+        } else {
+            // Filter by show
+            playlist.stories = playlist.allStories.filter(story => story.showId === showId);
+            playlist.currentShow = showId;
+        }
     }
 
     // Create intro slide
@@ -66,12 +147,8 @@
         slide.dataset.index = -1;
 
         slide.innerHTML = `
-            <img class="episode-bg" src="${channelImage}" alt="">
+            <img class="episode-bg" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="">
             <div class="episode-overlay"></div>
-            <div class="episode-content">
-                <h1 class="episode-title">${channelTitle}</h1>
-                <div class="intro-subtitle">A Musedrops Production</div>
-            </div>
             <div class="intro-hint">← Swipe left to start</div>
         `;
 
@@ -79,12 +156,12 @@
     }
 
     // Create episode slide
-    function createSlide(episode, index) {
+    function createSlide(story, index) {
         const slide = document.createElement('div');
         slide.className = 'episode-slide';
         slide.dataset.index = index;
 
-        const imgSrc = episode.image || channelImage;
+        const imgSrc = story.image || playlist.image;
 
         slide.innerHTML = `
             <img class="episode-bg" src="${imgSrc}" alt="">
@@ -92,8 +169,8 @@
             <div class="tap-area"></div>
             <button class="center-play-btn" aria-label="Play">${icons.play}</button>
             <div class="episode-content">
-                <div class="show-title">${channelTitle}</div>
-                <h1 class="episode-title">${episode.title}</h1>
+                <div class="show-title">${story.showTitle || playlist.title}</div>
+                <h1 class="episode-title">${story.title}</h1>
             </div>
             <div class="player-section">
                 <div class="player-controls">
@@ -108,22 +185,22 @@
                     <span class="time time-remaining">-0:00</span>
                 </div>
             </div>
-            <audio preload="metadata" src="${episode.audioUrl}"></audio>
+            <audio preload="metadata" src="${story.audioUrl}"></audio>
         `;
 
         return slide;
     }
 
     // Update Media Session metadata
-    function updateMediaSession(episode, index) {
+    function updateMediaSession(story, index) {
         if (!('mediaSession' in navigator)) return;
 
-        const imgSrc = episode.image || channelImage;
+        const imgSrc = story.image || playlist.image;
 
         navigator.mediaSession.metadata = new MediaMetadata({
-            title: episode.title,
-            artist: channelTitle,
-            album: channelTitle,
+            title: story.title,
+            artist: story.showTitle || playlist.title,
+            album: playlist.title,
             artwork: [
                 { src: imgSrc, sizes: '512x512', type: 'image/jpeg' }
             ]
@@ -155,7 +232,7 @@
         });
 
         navigator.mediaSession.setActionHandler('nexttrack', () => {
-            if (currentIndex < episodes.length - 1) {
+            if (currentIndex < playlist.stories.length - 1) {
                 goToSlide(currentIndex + 1, isPlaying);
             }
         });
@@ -254,7 +331,7 @@
         // Ended - go to next
         audio.addEventListener('ended', () => {
             updatePlayButton(slide, false);
-            if (currentIndex < episodes.length - 1) {
+            if (currentIndex < playlist.stories.length - 1) {
                 goToSlide(currentIndex + 1, true);
             }
         });
@@ -312,7 +389,7 @@
                 currentSlide.style.transform = '';
             }
 
-            if (diff < -threshold && currentIndex < episodes.length - 1) {
+            if (diff < -threshold && currentIndex < playlist.stories.length - 1) {
                 // Swipe left - next (continue playing if was playing)
                 goToSlide(currentIndex + 1, isPlaying);
             } else if (diff > threshold && currentIndex > -1) {
@@ -338,7 +415,7 @@
             if (newIndex === -1) {
                 newSlide = createIntroSlide();
             } else {
-                newSlide = createSlide(episodes[newIndex], newIndex);
+                newSlide = createSlide(playlist.stories[newIndex], newIndex);
                 setupPlayer(newSlide);
             }
             newSlide.classList.add(newIndex > currentIndex ? 'next' : 'prev');
@@ -355,9 +432,9 @@
 
         currentIndex = newIndex;
 
-        // Update media session for episode slides
+        // Update media session for story slides
         if (newIndex >= 0) {
-            updateMediaSession(episodes[newIndex], newIndex);
+            updateMediaSession(playlist.stories[newIndex], newIndex);
         }
 
         // Auto-play if requested
@@ -380,12 +457,75 @@
         }, 350);
     }
 
-    // Render
-    function render(data) {
-        channelTitle = data.title;
-        channelImage = data.image;
-        episodes = data.episodes;
+    // Build shows menu
+    function buildShowsMenu() {
+        const showsGrid = document.getElementById('shows-grid');
+        showsGrid.innerHTML = '';
 
+        // Add "All Shows" option
+        const allShowsItem = document.createElement('div');
+        allShowsItem.className = 'show-item';
+        allShowsItem.innerHTML = `
+            <img class="show-image" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="All Shows">
+            <div class="show-name">All Shows</div>
+        `;
+        allShowsItem.addEventListener('click', () => selectShow(null));
+        showsGrid.appendChild(allShowsItem);
+
+        // Add individual shows
+        playlist.shows.forEach(show => {
+            const showItem = document.createElement('div');
+            showItem.className = 'show-item';
+            showItem.innerHTML = `
+                <img class="show-image" src="${show.image}" alt="${show.title}">
+                <div class="show-name">${show.title}</div>
+            `;
+            showItem.addEventListener('click', () => selectShow(show.id));
+            showsGrid.appendChild(showItem);
+        });
+    }
+
+    // Select show and filter playlist
+    function selectShow(showId) {
+        filterPlaylist(showId);
+        closeShowsMenu();
+
+        // Reset to intro and start playing first episode
+        currentIndex = -1;
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
+        isPlaying = false;
+
+        // Clear player and go to first episode
+        const container = document.getElementById('player-container');
+        container.innerHTML = '';
+        const introSlide = createIntroSlide();
+        container.appendChild(introSlide);
+
+        // Auto-advance to first episode and play
+        setTimeout(() => {
+            if (playlist.stories.length > 0) {
+                goToSlide(0, true);
+            }
+        }, 300);
+    }
+
+    // Open/close shows menu
+    function openShowsMenu() {
+        console.log('Opening shows menu');
+        document.getElementById('shows-menu').classList.add('active');
+        buildShowsMenu();
+    }
+
+    function closeShowsMenu() {
+        console.log('Closing shows menu');
+        document.getElementById('shows-menu').classList.remove('active');
+    }
+
+    // Render
+    function render() {
         const container = document.getElementById('player-container');
 
         // Start with intro slide
@@ -395,6 +535,19 @@
 
         container.classList.remove('hidden');
         document.getElementById('loading').classList.add('hidden');
+
+        // Show menu button
+        const menuBtn = document.getElementById('menu-btn');
+        menuBtn.classList.remove('hidden');
+        console.log('Menu button visible:', menuBtn);
+
+        // Setup menu button
+        menuBtn.addEventListener('click', (e) => {
+            console.log('Menu button clicked!', e);
+            e.stopPropagation();
+            openShowsMenu();
+        });
+        document.getElementById('close-menu-btn').addEventListener('click', closeShowsMenu);
     }
 
     // Show error
@@ -407,24 +560,11 @@
 
     // Initialize
     async function init() {
-        const showName = getShowName();
-
-        if (!showName) {
-            showError('No show specified. Use ?show-name in the URL.');
-            return;
-        }
-
         try {
-            const response = await fetch(`${API_BASE}/${showName}/rss`);
-            if (!response.ok) {
-                throw new Error(`Failed to load RSS (${response.status})`);
-            }
-
-            const xml = await response.text();
-            const data = parseRSS(xml);
-            render(data);
+            await populatePlaylist();
+            render();
         } catch (error) {
-            showError(`Error loading podcast: ${error.message}`);
+            showError(`Error loading stories: ${error.message}`);
         }
     }
 
