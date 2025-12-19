@@ -80,18 +80,11 @@
 
                         const storyAudio = story.audio_url || story.audioUrl || story.url || '';
 
-                        console.log('Story data:', {
-                            title: story.title,
-                            image: storyImage,
-                            audio: storyAudio,
-                            rawStory: story
-                        });
-
                         return {
                             title: story.title || 'Untitled',
                             image: storyImage,
                             audioUrl: storyAudio,
-                            published: story.published_at || story.created_at || story.publishedAt || '',
+                            published: story.published || story.published_at || story.created_at || story.publishedAt || '',
                             showId: showInfo.id,
                             showTitle: showInfo.title
                         };
@@ -107,6 +100,15 @@
         allStories.sort((a, b) => {
             const dateA = new Date(a.published);
             const dateB = new Date(b.published);
+
+            // Handle invalid dates - put them at the end
+            const isValidA = !isNaN(dateA.getTime());
+            const isValidB = !isNaN(dateB.getTime());
+
+            if (!isValidA && !isValidB) return 0;
+            if (!isValidA) return 1;
+            if (!isValidB) return -1;
+
             return dateB - dateA;
         });
 
@@ -149,8 +151,15 @@
         slide.innerHTML = `
             <img class="episode-bg" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="">
             <div class="episode-overlay"></div>
-            <div class="intro-hint">← Swipe left to start</div>
+            <div class="intro-hint">Tap to start</div>
         `;
+
+        // Add tap to start functionality
+        slide.addEventListener('click', () => {
+            if (playlist.stories.length > 0) {
+                goToSlide(0, true);
+            }
+        });
 
         return slide;
     }
