@@ -181,9 +181,10 @@
 
       if (matchingShow) {
         filterPlaylist(matchingShow.id);
-        return; // Stop after first match
+        return true; // Return true to indicate filter was applied
       }
     }
+    return false; // No filter applied
   }
 
   // Create intro slide
@@ -657,6 +658,10 @@
         console.error('❌ Failed to copy URL to clipboard:', err);
       });
 
+    // Also update browser URL
+    window.history.pushState({}, "", url.toString());
+    console.log('🔗 Browser URL updated');
+
     // Reset to intro and start playing first episode
     currentIndex = -1;
     if (currentAudio) {
@@ -727,8 +732,15 @@
   async function init() {
     try {
       await populatePlaylist();
-      applyUrlFilter(); // Apply URL-based filter if present
+      const filterApplied = applyUrlFilter(); // Apply URL-based filter if present
       render();
+
+      // If filter was applied from URL, auto-advance to first episode
+      if (filterApplied && playlist.stories.length > 0) {
+        setTimeout(() => {
+          goToSlide(0, true);
+        }, 300);
+      }
     } catch (error) {
       showError(`Error loading stories: ${error.message}`);
     }
