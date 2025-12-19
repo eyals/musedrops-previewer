@@ -173,7 +173,10 @@
     // Get search param without the '?'
     const searchParam = window.location.search.replace('?', '');
 
-    if (!searchParam) return false;
+    if (!searchParam) {
+      console.log('No search param in URL - showing all shows');
+      return false;
+    }
 
     // Check if search param matches a show ID exactly
     const matchingShow = playlist.shows.find(
@@ -181,12 +184,13 @@
     );
 
     if (matchingShow) {
-      console.log('Found matching show from URL:', searchParam);
+      console.log('✅ Found matching show from URL:', searchParam);
       filterPlaylist(matchingShow.id);
       return true;
     }
 
-    return false;
+    console.log('⚠️ Show ID not found in URL:', searchParam, '- showing all shows');
+    return false; // Don't filter if show not found
   }
 
   // Create intro slide
