@@ -101,7 +101,7 @@
 
         // Extract stories from the show
         if (showDetails.stories && Array.isArray(showDetails.stories)) {
-          const stories = showDetails.stories.map((story) => {
+          const stories = showDetails.stories.map((story, index) => {
             // Try different possible image field names
             const storyImage =
               story.image_url ||
@@ -131,7 +131,7 @@
             };
 
             // Log first story of each show to debug
-            if (stories.length === 0) {
+            if (index === 0) {
               console.log('📄 First story mapping:', {
                 storyTitle: story.title,
                 storyId: story.id,
