@@ -364,6 +364,8 @@
 
     function updatePlayButton(slide, playing) {
         const centerPlayBtn = slide.querySelector('.center-play-btn');
+        if (!centerPlayBtn) return; // Exit if no play button (intro/end slides)
+
         if (playing) {
             centerPlayBtn.classList.add('hidden');
         } else {
