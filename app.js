@@ -534,6 +534,7 @@
   }
 
   function goToSlide(newIndex, autoPlay = false) {
+    console.log(`🎬 goToSlide called: from ${currentIndex} to ${newIndex}, autoPlay=${autoPlay}, total stories=${playlist.stories.length}`);
     const container = document.getElementById("player-container");
     const oldSlide = container.querySelector(
       `.episode-slide[data-index="${currentIndex}"]`
@@ -677,9 +678,13 @@
     container.appendChild(introSlide);
 
     // Auto-advance to first episode and play
+    console.log('Filtered playlist has', playlist.stories.length, 'stories');
     setTimeout(() => {
       if (playlist.stories.length > 0) {
+        console.log('Auto-advancing to first episode...');
         goToSlide(0, true);
+      } else {
+        console.warn('⚠️ No stories found after filtering!');
       }
     }, 300);
   }
