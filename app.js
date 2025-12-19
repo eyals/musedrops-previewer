@@ -168,6 +168,24 @@
     }
   }
 
+  // Apply URL-based filter if show slug is in URL
+  function applyUrlFilter() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Check each URL parameter to see if it matches a show ID
+    for (const [key, value] of urlParams.entries()) {
+      // Check if the parameter value matches any show ID
+      const matchingShow = playlist.shows.find(
+        (show) => show.id === value || show.id === key
+      );
+
+      if (matchingShow) {
+        filterPlaylist(matchingShow.id);
+        return; // Stop after first match
+      }
+    }
+  }
+
   // Create intro slide
   function createIntroSlide() {
     const slide = document.createElement("div");
@@ -614,6 +632,17 @@
     filterPlaylist(showId);
     closeShowsMenu();
 
+    // Update URL with show filter
+    const url = new URL(window.location);
+    if (showId === null) {
+      // Remove show parameter for "All Shows"
+      url.searchParams.delete("show");
+    } else {
+      // Add/update show parameter
+      url.searchParams.set("show", showId);
+    }
+    window.history.pushState({}, "", url);
+
     // Reset to intro and start playing first episode
     currentIndex = -1;
     if (currentAudio) {
@@ -684,6 +713,7 @@
   async function init() {
     try {
       await populatePlaylist();
+      applyUrlFilter(); // Apply URL-based filter if present
       render();
     } catch (error) {
       showError(`Error loading stories: ${error.message}`);
