@@ -147,6 +147,7 @@
         const slide = document.createElement('div');
         slide.className = 'episode-slide intro-slide';
         slide.dataset.index = -1;
+        slide.dataset.isIntro = 'true'; // Mark as intro for event delegation
 
         slide.innerHTML = `
             <img class="episode-bg" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="">
@@ -154,12 +155,23 @@
             <div class="intro-hint">Tap to start</div>
         `;
 
-        // Add tap to start functionality
-        slide.addEventListener('click', () => {
-            if (playlist.stories.length > 0) {
-                goToSlide(0, true);
-            }
-        });
+        return slide;
+    }
+
+    // Create end slide
+    function createEndSlide() {
+        const slide = document.createElement('div');
+        slide.className = 'episode-slide intro-slide'; // Reuse intro-slide styles
+        const endIndex = playlist.stories.length; // Index after last episode
+        slide.dataset.index = endIndex;
+        slide.dataset.isEnd = 'true'; // Mark as end for event delegation
+
+        slide.innerHTML = `
+            <div class="episode-overlay" style="background: #000;"></div>
+            <div class="episode-content" style="justify-content: center; align-items: center; text-align: center;">
+                <h1 class="episode-title">The End</h1>
+            </div>
+        `;
 
         return slide;
     }
@@ -337,11 +349,15 @@
             isSeeking = false;
         });
 
-        // Ended - go to next
+        // Ended - go to next or end slide
         audio.addEventListener('ended', () => {
             updatePlayButton(slide, false);
             if (currentIndex < playlist.stories.length - 1) {
+                // Go to next episode
                 goToSlide(currentIndex + 1, true);
+            } else {
+                // Go to end slide
+                goToSlide(playlist.stories.length, false);
             }
         });
     }
@@ -398,12 +414,22 @@
                 currentSlide.style.transform = '';
             }
 
-            if (diff < -threshold && currentIndex < playlist.stories.length - 1) {
+            // Allow swiping one past the last episode to reach "The End" slide
+            if (diff < -threshold && currentIndex < playlist.stories.length) {
                 // Swipe left - next (continue playing if was playing)
                 goToSlide(currentIndex + 1, isPlaying);
             } else if (diff > threshold && currentIndex > -1) {
                 // Swipe right - previous (continue playing if was playing)
                 goToSlide(currentIndex - 1, isPlaying && currentIndex > 0);
+            }
+        });
+
+        // Handle intro slide tap using event delegation
+        container.addEventListener('click', (e) => {
+            // Check if click is on intro slide or its children
+            const introSlide = e.target.closest('.intro-slide');
+            if (introSlide && currentIndex === -1 && playlist.stories.length > 0) {
+                goToSlide(0, true);
             }
         });
     }
@@ -423,6 +449,9 @@
         if (!newSlide) {
             if (newIndex === -1) {
                 newSlide = createIntroSlide();
+            } else if (newIndex === playlist.stories.length) {
+                // End slide
+                newSlide = createEndSlide();
             } else {
                 newSlide = createSlide(playlist.stories[newIndex], newIndex);
                 setupPlayer(newSlide);
@@ -455,11 +484,14 @@
             updatePlayButton(newSlide, true);
         }
 
-        // Clean up old slides after animation
+        // Clean up old slides after animation (keep intro and end slides)
         setTimeout(() => {
             container.querySelectorAll('.episode-slide').forEach(slide => {
                 const idx = parseInt(slide.dataset.index);
-                if (idx !== currentIndex) {
+                const isIntro = slide.dataset.isIntro === 'true';
+                const isEnd = slide.dataset.isEnd === 'true';
+                // Keep current slide, intro slide, and end slide
+                if (idx !== currentIndex && !isIntro && !isEnd) {
                     slide.remove();
                 }
             });
@@ -523,13 +555,11 @@
 
     // Open/close shows menu
     function openShowsMenu() {
-        console.log('Opening shows menu');
         document.getElementById('shows-menu').classList.add('active');
         buildShowsMenu();
     }
 
     function closeShowsMenu() {
-        console.log('Closing shows menu');
         document.getElementById('shows-menu').classList.remove('active');
     }
 
@@ -548,11 +578,9 @@
         // Show menu button
         const menuBtn = document.getElementById('menu-btn');
         menuBtn.classList.remove('hidden');
-        console.log('Menu button visible:', menuBtn);
 
         // Setup menu button
         menuBtn.addEventListener('click', (e) => {
-            console.log('Menu button clicked!', e);
             e.stopPropagation();
             openShowsMenu();
         });
