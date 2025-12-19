@@ -16,6 +16,7 @@
     // SVG icons
     const icons = {
         play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+        wave: '<svg viewBox="0 0 50 38.05" fill="currentColor"><style>@keyframes pulse{0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.3)}}.bar-1,.bar-9{animation:pulse .4s ease-in-out infinite;transform-origin:center}.bar-2,.bar-8{animation:pulse .4s ease-in-out infinite .05s;transform-origin:center}.bar-3,.bar-7{animation:pulse .4s ease-in-out infinite .1s;transform-origin:center}.bar-4,.bar-6{animation:pulse .4s ease-in-out infinite .15s;transform-origin:center}.bar-5{animation:pulse .4s ease-in-out infinite .2s;transform-origin:center}</style><path class="bar-1" d="M.91 15L.78 15A1 1 0 0 0 0 16v6a1 1 0 1 0 2 0s0 0 0 0V16a1 1 0 0 0-1-1H.91Z"/><path class="bar-2" d="M6.91 9L6.78 9A1 1 0 0 0 6 10V28a1 1 0 1 0 2 0s0 0 0 0V10A1 1 0 0 0 7 9H6.91Z"/><path class="bar-3" d="M12.91 0L12.78 0A1 1 0 0 0 12 1V37a1 1 0 1 0 2 0s0 0 0 0V1a1 1 0 0 0-1-1H12.91Z"/><path class="bar-4" d="M18.91 10l-.12 0A1 1 0 0 0 18 11V27a1 1 0 1 0 2 0s0 0 0 0V11a1 1 0 0 0-1-1H18.91Z"/><path class="bar-5" d="M24.91 15l-.12 0A1 1 0 0 0 24 16v6a1 1 0 0 0 2 0s0 0 0 0V16a1 1 0 0 0-1-1H24.91Z"/><path class="bar-6" d="M30.91 10l-.12 0A1 1 0 0 0 30 11V27a1 1 0 1 0 2 0s0 0 0 0V11a1 1 0 0 0-1-1H30.91Z"/><path class="bar-7" d="M36.91 0L36.78 0A1 1 0 0 0 36 1V37a1 1 0 1 0 2 0s0 0 0 0V1a1 1 0 0 0-1-1H36.91Z"/><path class="bar-8" d="M42.91 9L42.78 9A1 1 0 0 0 42 10V28a1 1 0 1 0 2 0s0 0 0 0V10a1 1 0 0 0-1-1H42.91Z"/><path class="bar-9" d="M48.91 15l-.12 0A1 1 0 0 0 48 16v6a1 1 0 1 0 2 0s0 0 0 0V16a1 1 0 0 0-1-1H48.91Z"/></svg>',
         rewind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>',
         forward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="15" font-size="7" fill="currentColor" stroke="none" text-anchor="middle">10</text></svg>'
     };
@@ -150,7 +151,7 @@
         slide.dataset.isIntro = 'true'; // Mark as intro for event delegation
 
         slide.innerHTML = `
-            <img class="episode-bg" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="">
+            <img class="episode-bg" src="cover.png" alt="">
             <div class="episode-overlay"></div>
             <div class="intro-hint">Tap to start</div>
         `;
@@ -367,9 +368,9 @@
         if (!centerPlayBtn) return; // Exit if no play button (intro/end slides)
 
         if (playing) {
-            centerPlayBtn.classList.add('hidden');
+            centerPlayBtn.innerHTML = icons.wave;
         } else {
-            centerPlayBtn.classList.remove('hidden');
+            centerPlayBtn.innerHTML = icons.play;
         }
     }
 
@@ -508,7 +509,7 @@
         const allShowsItem = document.createElement('div');
         allShowsItem.className = 'show-item';
         allShowsItem.innerHTML = `
-            <img class="show-image" src="https://ifsdyucvpgshyglmoxkp.supabase.co/storage/v1/object/public/media/static/cover.png" alt="All Shows">
+            <img class="show-image" src="cover.png" alt="All Shows">
             <div class="show-name">All Shows</div>
         `;
         allShowsItem.addEventListener('click', () => selectShow(null));
