@@ -369,8 +369,14 @@
 
         if (playing) {
             centerPlayBtn.innerHTML = icons.wave;
+            centerPlayBtn.style.border = 'none';
+            centerPlayBtn.style.width = '400px';
+            centerPlayBtn.style.height = '400px';
         } else {
             centerPlayBtn.innerHTML = icons.play;
+            centerPlayBtn.style.border = '';
+            centerPlayBtn.style.width = '';
+            centerPlayBtn.style.height = '';
         }
     }
 
