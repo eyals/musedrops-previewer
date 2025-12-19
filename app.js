@@ -632,8 +632,8 @@
     filterPlaylist(showId);
     closeShowsMenu();
 
-    // Update URL with show filter
-    const url = new URL(window.location);
+    // Copy URL with show filter to clipboard
+    const url = new URL(window.location.href);
     if (showId === null) {
       // Remove show parameter for "All Shows"
       url.searchParams.delete("show");
@@ -641,7 +641,11 @@
       // Add/update show parameter
       url.searchParams.set("show", showId);
     }
-    window.history.pushState({}, "", url);
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(url.toString()).catch(err => {
+      console.warn('Failed to copy URL to clipboard:', err);
+    });
 
     // Reset to intro and start playing first episode
     currentIndex = -1;
