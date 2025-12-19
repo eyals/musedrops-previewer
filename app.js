@@ -170,21 +170,23 @@
 
   // Apply URL-based filter if show slug is in URL
   function applyUrlFilter() {
-    const urlParams = new URLSearchParams(window.location.search);
+    // Get search param without the '?'
+    const searchParam = window.location.search.replace('?', '');
 
-    // Check each URL parameter to see if it matches a show ID
-    for (const [key, value] of urlParams.entries()) {
-      // Check if the parameter value matches any show ID
-      const matchingShow = playlist.shows.find(
-        (show) => show.id === value || show.id === key
-      );
+    if (!searchParam) return false;
 
-      if (matchingShow) {
-        filterPlaylist(matchingShow.id);
-        return true; // Return true to indicate filter was applied
-      }
+    // Check if search param matches a show ID exactly
+    const matchingShow = playlist.shows.find(
+      (show) => show.id === searchParam
+    );
+
+    if (matchingShow) {
+      console.log('Found matching show from URL:', searchParam);
+      filterPlaylist(matchingShow.id);
+      return true;
     }
-    return false; // No filter applied
+
+    return false;
   }
 
   // Create intro slide
@@ -640,11 +642,11 @@
     // Copy URL with show filter to clipboard
     const url = new URL(window.location.href);
     if (showId === null) {
-      // Remove show parameter for "All Shows"
-      url.searchParams.delete("show");
+      // Clear search for "All Shows"
+      url.search = "";
     } else {
-      // Add/update show parameter
-      url.searchParams.set("show", showId);
+      // Set search to just the show ID
+      url.search = `?${showId}`;
     }
 
     const urlToCopy = url.toString();
