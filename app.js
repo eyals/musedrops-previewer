@@ -472,8 +472,8 @@
 
         currentIndex = newIndex;
 
-        // Update media session for story slides
-        if (newIndex >= 0) {
+        // Update media session for story slides (not intro or end slides)
+        if (newIndex >= 0 && newIndex < playlist.stories.length) {
             updateMediaSession(playlist.stories[newIndex], newIndex);
         }
 
@@ -486,14 +486,13 @@
             updatePlayButton(newSlide, true);
         }
 
-        // Clean up old slides after animation (keep intro and end slides)
+        // Clean up old slides after animation (keep intro slide only)
         setTimeout(() => {
             container.querySelectorAll('.episode-slide').forEach(slide => {
                 const idx = parseInt(slide.dataset.index);
                 const isIntro = slide.dataset.isIntro === 'true';
-                const isEnd = slide.dataset.isEnd === 'true';
-                // Keep current slide, intro slide, and end slide
-                if (idx !== currentIndex && !isIntro && !isEnd) {
+                // Keep current slide and intro slide (end slide index can change with playlist)
+                if (idx !== currentIndex && !isIntro) {
                     slide.remove();
                 }
             });
