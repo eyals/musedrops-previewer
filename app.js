@@ -151,6 +151,9 @@
       playlist.title = data.stories[0].showTitle || "Musedrops";
       playlist.image = data.stories[0].image || "";
     }
+
+    console.log('📚 Loaded shows:', playlist.shows.map(s => ({ id: s.id, title: s.title })));
+    console.log('📖 Total stories:', playlist.allStories.length);
   }
 
   // Filter playlist by show
@@ -161,10 +164,15 @@
       playlist.currentShow = null;
     } else {
       // Filter by show
+      console.log('🔍 Filtering by showId:', showId);
+      console.log('Available show IDs in stories:', [...new Set(playlist.allStories.map(s => s.showId))]);
+
       playlist.stories = playlist.allStories.filter(
         (story) => story.showId === showId
       );
       playlist.currentShow = showId;
+
+      console.log(`Found ${playlist.stories.length} stories for show ${showId}`);
     }
   }
 
