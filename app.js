@@ -629,6 +629,9 @@
 
   // Select show and filter playlist
   function selectShow(showId) {
+    console.log('🔥 selectShow v2.0 - Latest version loaded');
+    console.log('Selected show ID:', showId);
+
     filterPlaylist(showId);
     closeShowsMenu();
 
@@ -642,10 +645,17 @@
       url.searchParams.set("show", showId);
     }
 
+    const urlToCopy = url.toString();
+    console.log('📋 Copying URL to clipboard:', urlToCopy);
+
     // Copy to clipboard
-    navigator.clipboard.writeText(url.toString()).catch(err => {
-      console.warn('Failed to copy URL to clipboard:', err);
-    });
+    navigator.clipboard.writeText(urlToCopy)
+      .then(() => {
+        console.log('✅ URL copied successfully!');
+      })
+      .catch(err => {
+        console.error('❌ Failed to copy URL to clipboard:', err);
+      });
 
     // Reset to intro and start playing first episode
     currentIndex = -1;
