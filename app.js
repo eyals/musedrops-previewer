@@ -420,7 +420,7 @@
       centerPlayBtn.style.border = "none";
       centerPlayBtn.style.width = "120px";
       centerPlayBtn.style.height = "120px";
-      centerPlayBtn.style.transform = "translate(-50%, -50%) scale(4)";
+      centerPlayBtn.style.transform = "translate(-50%, -50%) scale(1.2)";
       // Make the SVG fill the button
       const svg = centerPlayBtn.querySelector("svg");
       if (svg) {
