@@ -34,8 +34,13 @@
 
   // Load all shows and their stories
   async function loadPlaylist() {
-    // Load shows list
-    const showsResponse = await fetch(`${API_BASE}/shows`);
+    // Load shows list (bypass cache)
+    const showsResponse = await fetch(`${API_BASE}/shows`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
     if (!showsResponse.ok) {
       throw new Error(`Failed to load shows (${showsResponse.status})`);
     }
@@ -61,7 +66,12 @@
       if (!show.links?.self) continue;
 
       try {
-        const showResponse = await fetch(show.links.self);
+        const showResponse = await fetch(show.links.self, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (!showResponse.ok) continue;
 
         const showData = await showResponse.json();
@@ -80,6 +90,13 @@
             showDetails.image ||
             "",
         };
+        console.log('🎯 Processing show:', {
+          showId: showInfo.id,
+          title: showInfo.title,
+          showDetailsId: showDetails.id,
+          showId_fromAPI: show.id,
+          storiesCount: showDetails.stories?.length || 0
+        });
         showsList.push(showInfo);
 
         // Extract stories from the show
@@ -99,7 +116,7 @@
             const storyAudio =
               story.audio_url || story.audioUrl || story.url || "";
 
-            return {
+            const storyObj = {
               title: story.title || "Untitled",
               image: storyImage,
               audioUrl: storyAudio,
@@ -112,6 +129,18 @@
               showId: showInfo.id,
               showTitle: showInfo.title,
             };
+
+            // Log first story of each show to debug
+            if (stories.length === 0) {
+              console.log('📄 First story mapping:', {
+                storyTitle: story.title,
+                storyId: story.id,
+                assignedShowId: showInfo.id,
+                showTitle: showInfo.title
+              });
+            }
+
+            return storyObj;
           });
           allStories.push(...stories);
         }
