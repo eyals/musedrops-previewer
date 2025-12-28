@@ -333,10 +333,7 @@
       if (currentAudio) {
         currentAudio.play();
         isPlaying = true;
-        const slide = document.querySelector(
-          `.episode-slide[data-index="${currentIndex}"]`
-        );
-        if (slide) updatePlayButton(slide, true);
+        // Let the 'playing' event handle showing the animation
       }
     });
 
@@ -392,11 +389,11 @@
         audio.play();
         isPlaying = true;
         currentAudio = audio;
-        updatePlayButton(slide, true);
+        // Don't update button here - let the 'playing' event handle it
       } else {
         audio.pause();
         isPlaying = false;
-        updatePlayButton(slide, false);
+        // Pause event will handle hiding the animation
       }
     }
 
@@ -477,6 +474,21 @@
         // Go to end slide
         goToSlide(playlist.stories.length, false);
       }
+    });
+
+    // Show wave animation only when actually playing
+    audio.addEventListener("playing", () => {
+      updatePlayButton(slide, true);
+    });
+
+    // Hide wave animation when buffering
+    audio.addEventListener("waiting", () => {
+      updatePlayButton(slide, false);
+    });
+
+    // Hide wave animation when paused
+    audio.addEventListener("pause", () => {
+      updatePlayButton(slide, false);
     });
   }
 
@@ -635,7 +647,7 @@
       audio.play();
       currentAudio = audio;
       isPlaying = true;
-      updatePlayButton(newSlide, true);
+      // Let the 'playing' event handle showing the animation
     }
 
     // Clean up old slides after animation (keep intro slide only)
