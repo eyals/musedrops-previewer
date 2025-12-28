@@ -723,7 +723,7 @@
                     <div class="show-name">${show.title}</div>
                 </div>
                 <button class="follow-btn ${!isFollowed ? 'unfollowing' : ''}" data-show-id="${show.id}">
-                    ${isFollowed ? 'Follow' : 'Unfollow'}
+                    ${isFollowed ? 'Following' : 'Follow'}
                 </button>
             `;
 
@@ -740,7 +740,7 @@
         // Update button state
         const newIsFollowed = isShowFollowed(show.id);
         followBtn.className = `follow-btn ${!newIsFollowed ? 'unfollowing' : ''}`;
-        followBtn.textContent = newIsFollowed ? 'Follow' : 'Unfollow';
+        followBtn.textContent = newIsFollowed ? 'Following' : 'Follow';
       });
 
       showsGrid.appendChild(showItem);
