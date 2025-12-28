@@ -33,11 +33,13 @@ body {
     right: 0;
     background: #000;
     z-index: 100;
-    padding: 16px 24px;
-    padding-top: max(16px, env(safe-area-inset-top));
+    padding: 20px 24px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: 20px;
     padding-left: max(24px, env(safe-area-inset-left));
     padding-right: max(24px, env(safe-area-inset-right));
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    min-height: 60px;
 }
 
 .filter-banner-content {
@@ -45,12 +47,14 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    min-height: 28px;
 }
 
 #filter-banner-text {
     font-size: 14px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
 }
 
 .clear-filter-btn {
@@ -72,15 +76,15 @@ body {
 
 /* Push content down when banner is visible */
 body:has(.filter-banner:not(.hidden)) #player-container {
-    padding-top: 52px;
+    padding-top: 68px;
 }
 
 body:has(.filter-banner:not(.hidden)) .menu-btn {
-    top: calc(20px + 52px);
+    top: calc(20px + 68px);
 }
 
 body:has(.filter-banner:not(.hidden)) .episode-content {
-    padding-top: calc(max(24px, env(safe-area-inset-top)) + 52px);
+    padding-top: calc(max(24px, env(safe-area-inset-top)) + 68px);
 }
 
 body:has(.filter-banner:not(.hidden)) .show-title {
