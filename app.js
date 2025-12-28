@@ -172,17 +172,22 @@
   async function populatePlaylist() {
     const data = await loadPlaylist();
     playlist.allStories = data.stories;
-    playlist.stories = data.stories;
     playlist.shows = data.shows;
 
+    // Filter out unfollowed shows
+    playlist.stories = data.stories.filter(
+      (story) => isShowFollowed(story.showId)
+    );
+
     // Set playlist title and image from first story if available
-    if (data.stories.length > 0) {
-      playlist.title = data.stories[0].showTitle || "Musedrops";
-      playlist.image = data.stories[0].image || "";
+    if (playlist.stories.length > 0) {
+      playlist.title = playlist.stories[0].showTitle || "Musedrops";
+      playlist.image = playlist.stories[0].image || "";
     }
 
     console.log('📚 Loaded shows:', playlist.shows.map(s => ({ id: s.id, title: s.title })));
     console.log('📖 Total stories:', playlist.allStories.length);
+    console.log('✅ Followed stories:', playlist.stories.length);
   }
 
   // Filter playlist by show
@@ -644,30 +649,84 @@
     }, 350);
   }
 
+  // LocalStorage management for unfollowed shows
+  const UNFOLLOWED_SHOWS_KEY = "musedrops_unfollowed_shows";
+  let unfollowedShows = new Set();
+  let menuChangesMade = false;
+
+  function loadUnfollowedShows() {
+    try {
+      const stored = localStorage.getItem(UNFOLLOWED_SHOWS_KEY);
+      unfollowedShows = stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch (error) {
+      console.warn("Failed to load unfollowed shows:", error);
+      unfollowedShows = new Set();
+    }
+  }
+
+  function saveUnfollowedShows() {
+    try {
+      localStorage.setItem(
+        UNFOLLOWED_SHOWS_KEY,
+        JSON.stringify([...unfollowedShows])
+      );
+    } catch (error) {
+      console.warn("Failed to save unfollowed shows:", error);
+    }
+  }
+
+  function toggleFollowShow(showId) {
+    if (unfollowedShows.has(showId)) {
+      unfollowedShows.delete(showId);
+    } else {
+      unfollowedShows.add(showId);
+    }
+    saveUnfollowedShows();
+    menuChangesMade = true;
+  }
+
+  function isShowFollowed(showId) {
+    return !unfollowedShows.has(showId);
+  }
+
   // Build shows menu
   function buildShowsMenu() {
     const showsGrid = document.getElementById("shows-grid");
     showsGrid.innerHTML = "";
 
-    // Add "All Shows" option
-    const allShowsItem = document.createElement("div");
-    allShowsItem.className = "show-item";
-    allShowsItem.innerHTML = `
-            <img class="show-image" src="cover.png" alt="All Shows">
-            <div class="show-name">All Shows</div>
-        `;
-    allShowsItem.addEventListener("click", () => selectShow(null));
-    showsGrid.appendChild(allShowsItem);
-
     // Add individual shows
     playlist.shows.forEach((show) => {
       const showItem = document.createElement("div");
       showItem.className = "show-item";
+
+      const isFollowed = isShowFollowed(show.id);
+
       showItem.innerHTML = `
-                <img class="show-image" src="${show.image}" alt="${show.title}">
-                <div class="show-name">${show.title}</div>
+                <div class="show-item-content">
+                    <img class="show-image" src="${show.image}" alt="${show.title}">
+                    <div class="show-name">${show.title}</div>
+                </div>
+                <button class="follow-btn ${!isFollowed ? 'unfollowing' : ''}" data-show-id="${show.id}">
+                    ${isFollowed ? 'Follow' : 'Unfollow'}
+                </button>
             `;
-      showItem.addEventListener("click", () => selectShow(show.id));
+
+      // Click on content area filters by show
+      const content = showItem.querySelector(".show-item-content");
+      content.addEventListener("click", () => selectShow(show.id));
+
+      // Click on button toggles follow/unfollow
+      const followBtn = showItem.querySelector(".follow-btn");
+      followBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFollowShow(show.id);
+
+        // Update button state
+        const newIsFollowed = isShowFollowed(show.id);
+        followBtn.className = `follow-btn ${!newIsFollowed ? 'unfollowing' : ''}`;
+        followBtn.textContent = newIsFollowed ? 'Follow' : 'Unfollow';
+      });
+
       showsGrid.appendChild(showItem);
     });
   }
@@ -740,6 +799,32 @@
 
   function closeShowsMenu() {
     document.getElementById("shows-menu").classList.remove("active");
+
+    // If changes were made, reapply filter to show only followed shows
+    if (menuChangesMade) {
+      menuChangesMade = false;
+
+      // Filter to show only followed shows
+      playlist.stories = playlist.allStories.filter(
+        (story) => isShowFollowed(story.showId)
+      );
+
+      // Reset to intro and restart
+      currentIndex = -1;
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      isPlaying = false;
+
+      // Clear player and go to intro
+      const container = document.getElementById("player-container");
+      container.innerHTML = "";
+      const introSlide = createIntroSlide();
+      container.appendChild(introSlide);
+
+      console.log('✅ Filter updated - showing', playlist.stories.length, 'followed stories');
+    }
   }
 
   // Render
@@ -779,6 +864,7 @@
   // Initialize
   async function init() {
     try {
+      loadUnfollowedShows(); // Load unfollowed shows from localStorage
       await populatePlaylist();
       const filterApplied = applyUrlFilter(); // Apply URL-based filter if present
       render();
