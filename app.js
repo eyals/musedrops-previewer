@@ -228,10 +228,12 @@
     if (matchingShow) {
       console.log('✅ Found matching show from URL:', searchParam);
       filterPlaylist(matchingShow.id);
+      updateFilterBanner(matchingShow.id);
       return true;
     }
 
     console.log('⚠️ Show ID not found in URL:', searchParam, '- showing all shows');
+    updateFilterBanner(null);
     return false; // Don't filter if show not found
   }
 
@@ -731,12 +733,31 @@
     });
   }
 
+  // Update filter banner
+  function updateFilterBanner(showId) {
+    const banner = document.getElementById("filter-banner");
+    const bannerText = document.getElementById("filter-banner-text");
+
+    if (showId === null) {
+      // Hide banner when showing all shows
+      banner.classList.add("hidden");
+    } else {
+      // Show banner with show name
+      const show = playlist.shows.find((s) => s.id === showId);
+      if (show) {
+        bannerText.textContent = `Listening to ${show.title}`;
+        banner.classList.remove("hidden");
+      }
+    }
+  }
+
   // Select show and filter playlist
   function selectShow(showId) {
     console.log('🔥 selectShow v2.0 - Latest version loaded');
     console.log('Selected show ID:', showId);
 
     filterPlaylist(showId);
+    updateFilterBanner(showId);
     closeShowsMenu();
 
     // Copy URL with show filter to clipboard
@@ -851,6 +872,11 @@
     document
       .getElementById("close-menu-btn")
       .addEventListener("click", closeShowsMenu);
+
+    // Setup clear filter button
+    document
+      .getElementById("clear-filter-btn")
+      .addEventListener("click", () => selectShow(null));
   }
 
   // Show error

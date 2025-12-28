@@ -25,6 +25,68 @@ body {
     display: none !important;
 }
 
+/* Filter Banner */
+.filter-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #000;
+    z-index: 100;
+    padding: 16px 24px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+#filter-banner-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.clear-filter-btn {
+    padding: 6px 16px;
+    border-radius: 16px;
+    border: none;
+    background: #fff;
+    color: #000;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+.clear-filter-btn:active {
+    opacity: 0.7;
+}
+
+/* Push content down when banner is visible */
+body:has(.filter-banner:not(.hidden)) #player-container {
+    padding-top: 52px;
+}
+
+body:has(.filter-banner:not(.hidden)) .menu-btn {
+    top: calc(20px + 52px);
+}
+
+body:has(.filter-banner:not(.hidden)) .episode-content {
+    padding-top: calc(max(24px, env(safe-area-inset-top)) + 52px);
+}
+
+body:has(.filter-banner:not(.hidden)) .show-title {
+    display: none;
+}
+
 /* Loading & Error */
 #loading, #error {
     display: flex;
