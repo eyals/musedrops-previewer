@@ -228,6 +228,7 @@ body:has(.filter-banner:not(.hidden)) .show-title {
     font-weight: 700;
     line-height: 1.1;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding-right: 60px; /* Prevent overlap with menu button (44px + 16px gap) */
 }
 
 /* Player Controls */
