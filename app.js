@@ -193,8 +193,10 @@
   // Filter playlist by show
   function filterPlaylist(showId) {
     if (showId === null) {
-      // Show all stories
-      playlist.stories = playlist.allStories;
+      // Show all followed stories (respect unfollowed list)
+      playlist.stories = playlist.allStories.filter(
+        (story) => isShowFollowed(story.showId)
+      );
       playlist.currentShow = null;
     } else {
       // Filter by show
