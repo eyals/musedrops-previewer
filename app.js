@@ -34,118 +34,69 @@
 
   // Load all shows and their stories
   async function loadPlaylist() {
-    // Load shows list (bypass cache)
-    const showsResponse = await fetch(`${API_BASE}/shows`, {
+    // Load preview feed (bypass cache)
+    const response = await fetch(`${API_BASE}/preview-feed`, {
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache'
       }
     });
-    if (!showsResponse.ok) {
-      throw new Error(`Failed to load shows (${showsResponse.status})`);
-    }
-    const showsData = await showsResponse.json();
 
-    // Handle different response structures
-    const shows = Array.isArray(showsData)
-      ? showsData
-      : showsData.data && Array.isArray(showsData.data)
-      ? showsData.data
-      : [];
+    if (!response.ok) {
+      throw new Error(`Failed to load preview feed (${response.status})`);
+    }
+
+    const data = await response.json();
+    const shows = data.shows || [];
 
     if (shows.length === 0) {
-      console.warn("No shows found in response:", showsData);
-      return [];
+      console.warn("No shows found in preview-feed response");
+      return { stories: [], shows: [] };
     }
 
-    // Load each show's details
     const allStories = [];
     const showsList = [];
 
+    // Process each show and its stories
     for (const show of shows) {
-      if (!show.links?.self) continue;
+      const showInfo = {
+        id: show.id,
+        title: show.title || "Unknown Show",
+        image: show.imageUrl || "",
+      };
 
-      try {
-        const showResponse = await fetch(show.links.self, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache'
+      console.log('🎯 Processing show:', {
+        showId: showInfo.id,
+        title: showInfo.title,
+        storiesCount: show.stories?.length || 0
+      });
+
+      showsList.push(showInfo);
+
+      // Extract stories from the show
+      if (show.stories && Array.isArray(show.stories)) {
+        const stories = show.stories.map((story, index) => {
+          const storyObj = {
+            title: story.title || "Untitled",
+            image: story.imageUrl || showInfo.image,
+            audioUrl: story.audioUrl || "",
+            published: story.published || "",
+            showId: showInfo.id,
+            showTitle: showInfo.title,
+          };
+
+          // Log first story of each show to debug
+          if (index === 0) {
+            console.log('📄 First story mapping:', {
+              storyTitle: story.title,
+              assignedShowId: showInfo.id,
+              showTitle: showInfo.title
+            });
           }
+
+          return storyObj;
         });
-        if (!showResponse.ok) continue;
-
-        const showData = await showResponse.json();
-        const showDetails = showData.data || showData;
-
-        // Track show info - prioritize image from /shows API
-        const showInfo = {
-          id: showDetails.id || show.id || showDetails.title,
-          title: showDetails.title || show.title || "Unknown Show",
-          image:
-            show.imageUrl ||
-            show.image_url ||
-            show.image ||
-            showDetails.imageUrl ||
-            showDetails.image_url ||
-            showDetails.image ||
-            "",
-        };
-        console.log('🎯 Processing show:', {
-          showId: showInfo.id,
-          title: showInfo.title,
-          showDetailsId: showDetails.id,
-          showId_fromAPI: show.id,
-          storiesCount: showDetails.stories?.length || 0
-        });
-        showsList.push(showInfo);
-
-        // Extract stories from the show
-        if (showDetails.stories && Array.isArray(showDetails.stories)) {
-          const stories = showDetails.stories.map((story, index) => {
-            // Try different possible image field names
-            const storyImage =
-              story.image_url ||
-              story.image ||
-              story.imageUrl ||
-              story.thumbnail_url ||
-              story.thumbnail ||
-              showDetails.image_url ||
-              showDetails.image ||
-              "";
-
-            const storyAudio =
-              story.audio_url || story.audioUrl || story.url || "";
-
-            const storyObj = {
-              title: story.title || "Untitled",
-              image: storyImage,
-              audioUrl: storyAudio,
-              published:
-                story.published ||
-                story.published_at ||
-                story.created_at ||
-                story.publishedAt ||
-                "",
-              showId: showInfo.id,
-              showTitle: showInfo.title,
-            };
-
-            // Log first story of each show to debug
-            if (index === 0) {
-              console.log('📄 First story mapping:', {
-                storyTitle: story.title,
-                storyId: story.id,
-                assignedShowId: showInfo.id,
-                showTitle: showInfo.title
-              });
-            }
-
-            return storyObj;
-          });
-          allStories.push(...stories);
-        }
-      } catch (error) {
-        console.warn(`Failed to load show ${show.links.self}:`, error);
+        allStories.push(...stories);
       }
     }
 
