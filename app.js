@@ -862,6 +862,55 @@
     }
   }
 
+  // Setup keyboard navigation
+  function setupKeyboard() {
+    document.addEventListener("keydown", (e) => {
+      // Ignore if typing in an input field
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      // Space: Toggle playback
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (currentIndex >= 0 && currentIndex < playlist.stories.length) {
+          const currentSlide = document.querySelector(
+            `.episode-slide[data-index="${currentIndex}"]`
+          );
+          if (currentSlide) {
+            const audio = currentSlide.querySelector("audio");
+            if (audio) {
+              if (audio.paused) {
+                audio.play();
+                isPlaying = true;
+                currentAudio = audio;
+              } else {
+                audio.pause();
+                isPlaying = false;
+              }
+            }
+          }
+        }
+      }
+
+      // Left Arrow: Previous story
+      if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        if (currentIndex > -1) {
+          goToSlide(currentIndex - 1, isPlaying && currentIndex > 0);
+        }
+      }
+
+      // Right Arrow: Next story
+      if (e.code === "ArrowRight") {
+        e.preventDefault();
+        if (currentIndex < playlist.stories.length) {
+          goToSlide(currentIndex + 1, isPlaying);
+        }
+      }
+    });
+  }
+
   // Render
   function render() {
     const container = document.getElementById("player-container");
@@ -870,6 +919,7 @@
     const introSlide = createIntroSlide();
     container.appendChild(introSlide);
     setupSwipe(container);
+    setupKeyboard();
 
     container.classList.remove("hidden");
     document.getElementById("loading").classList.add("hidden");
