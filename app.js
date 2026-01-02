@@ -62,7 +62,7 @@
       const showInfo = {
         id: show.id,
         title: show.title || "Unknown Show",
-        image: show.imageUrl || "",
+        image: `${API_BASE}/shows/${show.id}/image?size=70`,
       };
 
       console.log('🎯 Processing show:', {
@@ -77,9 +77,10 @@
       if (show.stories && Array.isArray(show.stories)) {
         const stories = show.stories.map((story, index) => {
           const storyObj = {
+            id: story.id,
             title: story.title || "Untitled",
-            image: story.imageUrl || showInfo.image,
-            audioUrl: story.audioUrl || "",
+            image: `${API_BASE}/stories/${story.id}/image`,
+            audioUrl: `${API_BASE}/stories/${story.id}/audio`,
             published: story.published || "",
             showId: showInfo.id,
             showTitle: showInfo.title,
@@ -88,6 +89,7 @@
           // Log first story of each show to debug
           if (index === 0) {
             console.log('📄 First story mapping:', {
+              storyId: story.id,
               storyTitle: story.title,
               assignedShowId: showInfo.id,
               showTitle: showInfo.title
