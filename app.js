@@ -34,8 +34,8 @@
 
   // Load all shows and their stories
   async function loadPlaylist() {
-    // Load preview feed (bypass cache)
-    const response = await fetch(`${API_BASE}/preview-feed`, {
+    // Load feed (bypass cache)
+    const response = await fetch(`${API_BASE}/feed?page_size=50`, {
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache'
@@ -43,82 +43,60 @@
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to load preview feed (${response.status})`);
+      throw new Error(`Failed to load feed (${response.status})`);
     }
 
     const data = await response.json();
-    const shows = data.shows || [];
+    const stories = data.stories || [];
 
-    if (shows.length === 0) {
-      console.warn("No shows found in preview-feed response");
+    if (stories.length === 0) {
+      console.warn("No stories found in feed response");
       return { stories: [], shows: [] };
     }
 
+    // Build show list from unique show slugs in stories
+    const showsMap = new Map();
     const allStories = [];
-    const showsList = [];
 
-    // Process each show and its stories
-    for (const show of shows) {
-      const showInfo = {
-        id: show.id,
-        title: show.title || "Unknown Show",
-        image: `${API_BASE}/shows/${show.id}/image?size=70`,
+    // Process each story
+    for (const story of stories) {
+      // Add show to map if not already present
+      if (story.showSlug && !showsMap.has(story.showSlug)) {
+        showsMap.set(story.showSlug, {
+          id: story.showSlug,
+          title: story.showName || "Unknown Show",
+          image: `${API_BASE}/shows/${story.showSlug}/image?size=70`,
+        });
+
+        console.log('🎯 Discovered show:', {
+          showId: story.showSlug,
+          title: story.showName
+        });
+      }
+
+      // Map story to internal format
+      const storyObj = {
+        id: story.slug,
+        title: story.title || "Untitled",
+        image: `${API_BASE}/stories/${story.slug}/image`,
+        audioUrl: `${API_BASE}/stories/${story.slug}/audio`,
+        published: story.published || "",
+        showId: story.showSlug,
+        showTitle: story.showName || "Unknown Show",
       };
 
-      console.log('🎯 Processing show:', {
-        showId: showInfo.id,
-        title: showInfo.title,
-        storiesCount: show.stories?.length || 0
-      });
-
-      showsList.push(showInfo);
-
-      // Extract stories from the show
-      if (show.stories && Array.isArray(show.stories)) {
-        const stories = show.stories.map((story, index) => {
-          const storyObj = {
-            id: story.id,
-            title: story.title || "Untitled",
-            image: `${API_BASE}/stories/${story.id}/image`,
-            audioUrl: `${API_BASE}/stories/${story.id}/audio`,
-            published: story.published || "",
-            showId: showInfo.id,
-            showTitle: showInfo.title,
-          };
-
-          // Log first story of each show to debug
-          if (index === 0) {
-            console.log('📄 First story mapping:', {
-              storyId: story.id,
-              storyTitle: story.title,
-              assignedShowId: showInfo.id,
-              showTitle: showInfo.title
-            });
-          }
-
-          return storyObj;
-        });
-        allStories.push(...stories);
-      }
+      allStories.push(storyObj);
     }
 
-    // Sort by published date (newer first)
-    allStories.sort((a, b) => {
-      const dateA = new Date(a.published);
-      const dateB = new Date(b.published);
-
-      // Handle invalid dates - put them at the end
-      const isValidA = !isNaN(dateA.getTime());
-      const isValidB = !isNaN(dateB.getTime());
-
-      if (!isValidA && !isValidB) return 0;
-      if (!isValidA) return 1;
-      if (!isValidB) return -1;
-
-      return dateB - dateA;
+    console.log('📊 Feed loaded:', {
+      storiesCount: allStories.length,
+      showsCount: showsMap.size
     });
 
-    return { stories: allStories, shows: showsList };
+    return {
+      stories: allStories,
+      shows: Array.from(showsMap.values())
+    };
   }
 
   // Populate playlist
