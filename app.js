@@ -35,7 +35,7 @@
   // Load all shows and their stories
   async function loadPlaylist() {
     // Load feed (bypass cache)
-    const response = await fetch(`${API_BASE}/feed?page_size=50`, {
+    const response = await fetch(`${API_BASE}/v1/feed?page_size=50`, {
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache'
