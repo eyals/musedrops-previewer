@@ -65,7 +65,7 @@
         showsMap.set(story.showSlug, {
           id: story.showSlug,
           title: story.showName || "Unknown Show",
-          image: `${API_BASE}/shows/${story.showSlug}/image?size=70`,
+          image: `${API_BASE}/v1/shows/${story.showSlug}/image?size=70`,
         });
 
         console.log('🎯 Discovered show:', {
@@ -78,8 +78,8 @@
       const storyObj = {
         id: story.slug,
         title: story.title || "Untitled",
-        image: `${API_BASE}/stories/${story.slug}/image`,
-        audioUrl: `${API_BASE}/stories/${story.slug}/audio`,
+        image: `${API_BASE}/v1/stories/${story.slug}/image`,
+        audioUrl: `${API_BASE}/v1/stories/${story.slug}/audio`,
         published: story.published || "",
         showId: story.showSlug,
         showTitle: story.showName || "Unknown Show",
