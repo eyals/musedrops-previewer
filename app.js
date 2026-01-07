@@ -1,11 +1,11 @@
 (function () {
-  const API_BASE = "https://api.musedrops.com";
+  const API_BASE = "https://api.musedrops.com/v1";
 
   let playlist = {
-    stories: [],
-    allStories: [],
-    shows: [],
-    currentShow: null,
+    drops: [],
+    allDrops: [],
+    channels: [],
+    currentChannel: null,
     title: "Musedrops",
     image: "",
   };
@@ -32,142 +32,153 @@
     return `${sign}${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  // Load all shows and their stories
+  // Load all channels and their drops
   async function loadPlaylist() {
-    // Load feed (bypass cache)
-    const response = await fetch(`${API_BASE}/v1/feed?page_size=50`, {
-      cache: 'no-store',
+    // Load stream (bypass cache)
+    const response = await fetch(`${API_BASE}/stream?page_size=50`, {
+      cache: "no-store",
       headers: {
-        'Cache-Control': 'no-cache'
-      }
+        "Cache-Control": "no-cache",
+      },
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to load feed (${response.status})`);
+      throw new Error(`Failed to load stream (${response.status})`);
     }
 
     const data = await response.json();
-    const stories = data.stories || [];
+    const drops = data.drops || [];
 
-    if (stories.length === 0) {
-      console.warn("No stories found in feed response");
-      return { stories: [], shows: [] };
+    if (drops.length === 0) {
+      console.warn("No drops found in stream response");
+      return { drops: [], channels: [] };
     }
 
-    // Build show list from unique show slugs in stories
-    const showsMap = new Map();
-    const allStories = [];
+    // Build channel list from unique channel slugs in drops
+    const channelsMap = new Map();
+    const allDrops = [];
 
-    // Process each story
-    for (const story of stories) {
-      // Add show to map if not already present
-      if (story.showSlug && !showsMap.has(story.showSlug)) {
-        showsMap.set(story.showSlug, {
-          id: story.showSlug,
-          title: story.showName || "Unknown Show",
-          image: `${API_BASE}/v1/shows/${story.showSlug}/image?size=70`,
+    // Process each drop
+    for (const drop of drops) {
+      // Add channel to map if not already present
+      if (drop.chSlug && !channelsMap.has(drop.chSlug)) {
+        channelsMap.set(drop.chSlug, {
+          id: drop.chSlug,
+          title: drop.chName || "Unknown Channel",
+          image: `${API_BASE}/channels/${drop.chSlug}/image?size=70`,
         });
 
-        console.log('🎯 Discovered show:', {
-          showId: story.showSlug,
-          title: story.showName
+        console.log("🎯 Discovered channel:", {
+          channelId: drop.chSlug,
+          title: drop.chName,
         });
       }
 
-      // Map story to internal format
-      const storyObj = {
-        id: story.slug,
-        title: story.title || "Untitled",
-        image: `${API_BASE}/v1/stories/${story.slug}/image`,
-        audioUrl: `${API_BASE}/v1/stories/${story.slug}/audio`,
-        published: story.published || "",
-        showId: story.showSlug,
-        showTitle: story.showName || "Unknown Show",
+      // Map drop to internal format
+      const dropObj = {
+        id: drop.slug,
+        title: drop.title || "Untitled",
+        image: `${API_BASE}/drops/${drop.slug}/image`,
+        audioUrl: `${API_BASE}/drops/${drop.slug}/audio`,
+        published: drop.published || "",
+        channelId: drop.chSlug,
+        channelTitle: drop.chName || "Unknown Channel",
       };
 
-      allStories.push(storyObj);
+      allDrops.push(dropObj);
     }
 
-    console.log('📊 Feed loaded:', {
-      storiesCount: allStories.length,
-      showsCount: showsMap.size
+    console.log("📊 Stream loaded:", {
+      dropsCount: allDrops.length,
+      channelsCount: channelsMap.size,
     });
 
     return {
-      stories: allStories,
-      shows: Array.from(showsMap.values())
+      drops: allDrops,
+      channels: Array.from(channelsMap.values()),
     };
   }
 
   // Populate playlist
   async function populatePlaylist() {
     const data = await loadPlaylist();
-    playlist.allStories = data.stories;
-    playlist.shows = data.shows;
+    playlist.allDrops = data.drops;
+    playlist.channels = data.channels;
 
-    // Filter out unfollowed shows
-    playlist.stories = data.stories.filter(
-      (story) => isShowFollowed(story.showId)
+    // Filter out unfollowed channels
+    playlist.drops = data.drops.filter((drop) =>
+      isChannelFollowed(drop.channelId)
     );
 
-    // Set playlist title and image from first story if available
-    if (playlist.stories.length > 0) {
-      playlist.title = playlist.stories[0].showTitle || "Musedrops";
-      playlist.image = playlist.stories[0].image || "";
+    // Set playlist title and image from first drop if available
+    if (playlist.drops.length > 0) {
+      playlist.title = playlist.drops[0].channelTitle || "Musedrops";
+      playlist.image = playlist.drops[0].image || "";
     }
 
-    console.log('📚 Loaded shows:', playlist.shows.map(s => ({ id: s.id, title: s.title })));
-    console.log('📖 Total stories:', playlist.allStories.length);
-    console.log('✅ Followed stories:', playlist.stories.length);
+    console.log(
+      "📚 Loaded channels:",
+      playlist.channels.map((c) => ({ id: c.id, title: c.title }))
+    );
+    console.log("📖 Total drops:", playlist.allDrops.length);
+    console.log("✅ Followed drops:", playlist.drops.length);
   }
 
-  // Filter playlist by show
-  function filterPlaylist(showId) {
-    if (showId === null) {
-      // Show all followed stories (respect unfollowed list)
-      playlist.stories = playlist.allStories.filter(
-        (story) => isShowFollowed(story.showId)
+  // Filter playlist by channel
+  function filterPlaylist(channelId) {
+    if (channelId === null) {
+      // Show all followed drops (respect unfollowed list)
+      playlist.drops = playlist.allDrops.filter((drop) =>
+        isChannelFollowed(drop.channelId)
       );
-      playlist.currentShow = null;
+      playlist.currentChannel = null;
     } else {
-      // Filter by show
-      console.log('🔍 Filtering by showId:', showId);
-      console.log('Available show IDs in stories:', [...new Set(playlist.allStories.map(s => s.showId))]);
+      // Filter by channel
+      console.log("🔍 Filtering by channelId:", channelId);
+      console.log("Available channel IDs in drops:", [
+        ...new Set(playlist.allDrops.map((d) => d.channelId)),
+      ]);
 
-      playlist.stories = playlist.allStories.filter(
-        (story) => story.showId === showId
+      playlist.drops = playlist.allDrops.filter(
+        (drop) => drop.channelId === channelId
       );
-      playlist.currentShow = showId;
+      playlist.currentChannel = channelId;
 
-      console.log(`Found ${playlist.stories.length} stories for show ${showId}`);
+      console.log(
+        `Found ${playlist.drops.length} drops for channel ${channelId}`
+      );
     }
   }
 
-  // Apply URL-based filter if show slug is in URL
+  // Apply URL-based filter if channel slug is in URL
   function applyUrlFilter() {
     // Get search param without the '?'
-    const searchParam = window.location.search.replace('?', '');
+    const searchParam = window.location.search.replace("?", "");
 
     if (!searchParam) {
-      console.log('No search param in URL - showing all shows');
+      console.log("No search param in URL - showing all channels");
       return false;
     }
 
-    // Check if search param matches a show ID exactly
-    const matchingShow = playlist.shows.find(
-      (show) => show.id === searchParam
+    // Check if search param matches a channel ID exactly
+    const matchingChannel = playlist.channels.find(
+      (channel) => channel.id === searchParam
     );
 
-    if (matchingShow) {
-      console.log('✅ Found matching show from URL:', searchParam);
-      filterPlaylist(matchingShow.id);
-      updateFilterBanner(matchingShow.id);
+    if (matchingChannel) {
+      console.log("✅ Found matching channel from URL:", searchParam);
+      filterPlaylist(matchingChannel.id);
+      updateFilterBanner(matchingChannel.id);
       return true;
     }
 
-    console.log('⚠️ Show ID not found in URL:', searchParam, '- showing all shows');
+    console.log(
+      "⚠️ Channel ID not found in URL:",
+      searchParam,
+      "- showing all channels"
+    );
     updateFilterBanner(null);
-    return false; // Don't filter if show not found
+    return false; // Don't filter if channel not found
   }
 
   // Create intro slide
@@ -190,7 +201,7 @@
   function createEndSlide() {
     const slide = document.createElement("div");
     slide.className = "episode-slide intro-slide"; // Reuse intro-slide styles
-    const endIndex = playlist.stories.length; // Index after last episode
+    const endIndex = playlist.drops.length; // Index after last episode
     slide.dataset.index = endIndex;
     slide.dataset.isEnd = "true"; // Mark as end for event delegation
 
@@ -205,12 +216,12 @@
   }
 
   // Create episode slide
-  function createSlide(story, index) {
+  function createSlide(drop, index) {
     const slide = document.createElement("div");
     slide.className = "episode-slide";
     slide.dataset.index = index;
 
-    const imgSrc = story.image || playlist.image;
+    const imgSrc = drop.image || playlist.image;
 
     slide.innerHTML = `
             <img class="episode-bg" src="${imgSrc}" alt="">
@@ -221,9 +232,9 @@
             }</button>
             <div class="episode-content">
                 <div class="show-title">${
-                  story.showTitle || playlist.title
+                  drop.channelTitle || playlist.title
                 }</div>
-                <h1 class="episode-title">${story.title}</h1>
+                <h1 class="episode-title">${drop.title}</h1>
             </div>
             <div class="player-section">
                 <div class="player-controls">
@@ -242,21 +253,21 @@
                     <span class="time time-remaining">-0:00</span>
                 </div>
             </div>
-            <audio preload="metadata" src="${story.audioUrl}"></audio>
+            <audio preload="metadata" src="${drop.audioUrl}"></audio>
         `;
 
     return slide;
   }
 
   // Update Media Session metadata
-  function updateMediaSession(story, index) {
+  function updateMediaSession(drop, index) {
     if (!("mediaSession" in navigator)) return;
 
-    const imgSrc = story.image || playlist.image;
+    const imgSrc = drop.image || playlist.image;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: story.title,
-      artist: story.showTitle || playlist.title,
+      title: drop.title,
+      artist: drop.channelTitle || playlist.title,
       album: playlist.title,
       artwork: [{ src: imgSrc, sizes: "512x512", type: "image/jpeg" }],
     });
@@ -288,7 +299,7 @@
     });
 
     navigator.mediaSession.setActionHandler("nexttrack", () => {
-      if (currentIndex < playlist.stories.length - 1) {
+      if (currentIndex < playlist.drops.length - 1) {
         goToSlide(currentIndex + 1, isPlaying);
       }
     });
@@ -400,12 +411,12 @@
     // Ended - go to next or end slide
     audio.addEventListener("ended", () => {
       updatePlayButton(slide, false);
-      if (currentIndex < playlist.stories.length - 1) {
+      if (currentIndex < playlist.drops.length - 1) {
         // Go to next episode
         goToSlide(currentIndex + 1, true);
       } else {
         // Go to end slide
-        goToSlide(playlist.stories.length, false);
+        goToSlide(playlist.drops.length, false);
       }
     });
 
@@ -509,7 +520,7 @@
       }
 
       // Allow swiping one past the last episode to reach "The End" slide
-      if (diff < -threshold && currentIndex < playlist.stories.length) {
+      if (diff < -threshold && currentIndex < playlist.drops.length) {
         // Swipe left - next (continue playing if was playing)
         goToSlide(currentIndex + 1, isPlaying);
       } else if (diff > threshold && currentIndex > -1) {
@@ -522,14 +533,16 @@
     container.addEventListener("click", (e) => {
       // Check if click is on intro slide or its children
       const introSlide = e.target.closest(".intro-slide");
-      if (introSlide && currentIndex === -1 && playlist.stories.length > 0) {
+      if (introSlide && currentIndex === -1 && playlist.drops.length > 0) {
         goToSlide(0, true);
       }
     });
   }
 
   function goToSlide(newIndex, autoPlay = false) {
-    console.log(`🎬 goToSlide called: from ${currentIndex} to ${newIndex}, autoPlay=${autoPlay}, total stories=${playlist.stories.length}`);
+    console.log(
+      `🎬 goToSlide called: from ${currentIndex} to ${newIndex}, autoPlay=${autoPlay}, total drops=${playlist.drops.length}`
+    );
     const container = document.getElementById("player-container");
     const oldSlide = container.querySelector(
       `.episode-slide[data-index="${currentIndex}"]`
@@ -548,11 +561,11 @@
     if (!newSlide) {
       if (newIndex === -1) {
         newSlide = createIntroSlide();
-      } else if (newIndex === playlist.stories.length) {
+      } else if (newIndex === playlist.drops.length) {
         // End slide
         newSlide = createEndSlide();
       } else {
-        newSlide = createSlide(playlist.stories[newIndex], newIndex);
+        newSlide = createSlide(playlist.drops[newIndex], newIndex);
         setupPlayer(newSlide);
       }
       newSlide.classList.add(newIndex > currentIndex ? "next" : "prev");
@@ -569,9 +582,9 @@
 
     currentIndex = newIndex;
 
-    // Update media session for story slides (not intro or end slides)
-    if (newIndex >= 0 && newIndex < playlist.stories.length) {
-      updateMediaSession(playlist.stories[newIndex], newIndex);
+    // Update media session for drop slides (not intro or end slides)
+    if (newIndex >= 0 && newIndex < playlist.drops.length) {
+      updateMediaSession(playlist.drops[newIndex], newIndex);
     }
 
     // Auto-play if requested
@@ -596,140 +609,147 @@
     }, 350);
   }
 
-  // LocalStorage management for unfollowed shows
-  const UNFOLLOWED_SHOWS_KEY = "musedrops_unfollowed_shows";
-  let unfollowedShows = new Set();
+  // LocalStorage management for unfollowed channels
+  const UNFOLLOWED_CHANNELS_KEY = "musedrops_unfollowed_channels";
+  let unfollowedChannels = new Set();
   let menuChangesMade = false;
 
-  function loadUnfollowedShows() {
+  function loadUnfollowedChannels() {
     try {
-      const stored = localStorage.getItem(UNFOLLOWED_SHOWS_KEY);
-      unfollowedShows = stored ? new Set(JSON.parse(stored)) : new Set();
+      const stored = localStorage.getItem(UNFOLLOWED_CHANNELS_KEY);
+      unfollowedChannels = stored ? new Set(JSON.parse(stored)) : new Set();
     } catch (error) {
-      console.warn("Failed to load unfollowed shows:", error);
-      unfollowedShows = new Set();
+      console.warn("Failed to load unfollowed channels:", error);
+      unfollowedChannels = new Set();
     }
   }
 
-  function saveUnfollowedShows() {
+  function saveUnfollowedChannels() {
     try {
       localStorage.setItem(
-        UNFOLLOWED_SHOWS_KEY,
-        JSON.stringify([...unfollowedShows])
+        UNFOLLOWED_CHANNELS_KEY,
+        JSON.stringify([...unfollowedChannels])
       );
     } catch (error) {
-      console.warn("Failed to save unfollowed shows:", error);
+      console.warn("Failed to save unfollowed channels:", error);
     }
   }
 
-  function toggleFollowShow(showId) {
-    if (unfollowedShows.has(showId)) {
-      unfollowedShows.delete(showId);
+  function toggleFollowChannel(channelId) {
+    if (unfollowedChannels.has(channelId)) {
+      unfollowedChannels.delete(channelId);
     } else {
-      unfollowedShows.add(showId);
+      unfollowedChannels.add(channelId);
     }
-    saveUnfollowedShows();
+    saveUnfollowedChannels();
     menuChangesMade = true;
   }
 
-  function isShowFollowed(showId) {
-    return !unfollowedShows.has(showId);
+  function isChannelFollowed(channelId) {
+    return !unfollowedChannels.has(channelId);
   }
 
-  // Build shows menu
-  function buildShowsMenu() {
-    const showsGrid = document.getElementById("shows-grid");
-    showsGrid.innerHTML = "";
+  // Build channels menu
+  function buildChannelsMenu() {
+    const channelsGrid = document.getElementById("shows-grid");
+    channelsGrid.innerHTML = "";
 
-    // Add individual shows
-    playlist.shows.forEach((show) => {
-      const showItem = document.createElement("div");
-      showItem.className = "show-item";
+    // Add individual channels
+    playlist.channels.forEach((channel) => {
+      const channelItem = document.createElement("div");
+      channelItem.className = "show-item";
 
-      const isFollowed = isShowFollowed(show.id);
+      const isFollowed = isChannelFollowed(channel.id);
 
-      showItem.innerHTML = `
+      channelItem.innerHTML = `
                 <div class="show-item-content">
-                    <img class="show-image" src="${show.image}" alt="${show.title}">
-                    <div class="show-name">${show.title}</div>
+                    <img class="show-image" src="${channel.image}" alt="${
+        channel.title
+      }">
+                    <div class="show-name">${channel.title}</div>
                 </div>
-                <button class="follow-btn ${!isFollowed ? 'unfollowing' : ''}" data-show-id="${show.id}">
-                    ${isFollowed ? 'Following' : 'Follow'}
+                <button class="follow-btn ${
+                  !isFollowed ? "unfollowing" : ""
+                }" data-show-id="${channel.id}">
+                    ${isFollowed ? "Following" : "Follow"}
                 </button>
             `;
 
-      // Click on content area filters by show
-      const content = showItem.querySelector(".show-item-content");
-      content.addEventListener("click", () => selectShow(show.id));
+      // Click on content area filters by channel
+      const content = channelItem.querySelector(".show-item-content");
+      content.addEventListener("click", () => selectChannel(channel.id));
 
       // Click on button toggles follow/unfollow
-      const followBtn = showItem.querySelector(".follow-btn");
+      const followBtn = channelItem.querySelector(".follow-btn");
       followBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        toggleFollowShow(show.id);
+        toggleFollowChannel(channel.id);
 
         // Update button state
-        const newIsFollowed = isShowFollowed(show.id);
-        followBtn.className = `follow-btn ${!newIsFollowed ? 'unfollowing' : ''}`;
-        followBtn.textContent = newIsFollowed ? 'Following' : 'Follow';
+        const newIsFollowed = isChannelFollowed(channel.id);
+        followBtn.className = `follow-btn ${
+          !newIsFollowed ? "unfollowing" : ""
+        }`;
+        followBtn.textContent = newIsFollowed ? "Following" : "Follow";
       });
 
-      showsGrid.appendChild(showItem);
+      channelsGrid.appendChild(channelItem);
     });
   }
 
   // Update filter banner
-  function updateFilterBanner(showId) {
+  function updateFilterBanner(channelId) {
     const banner = document.getElementById("filter-banner");
     const bannerText = document.getElementById("filter-banner-text");
 
-    if (showId === null) {
-      // Hide banner when showing all shows
+    if (channelId === null) {
+      // Hide banner when showing all channels
       banner.classList.add("hidden");
     } else {
-      // Show banner with show name
-      const show = playlist.shows.find((s) => s.id === showId);
-      if (show) {
-        bannerText.textContent = `Listening to ${show.title}`;
+      // Show banner with channel name
+      const channel = playlist.channels.find((s) => s.id === channelId);
+      if (channel) {
+        bannerText.textContent = `Listening to ${channel.title}`;
         banner.classList.remove("hidden");
       }
     }
   }
 
   // Select show and filter playlist
-  function selectShow(showId) {
-    console.log('🔥 selectShow v2.0 - Latest version loaded');
-    console.log('Selected show ID:', showId);
+  function selectChannel(channelId) {
+    console.log("🔥 selectChannel v2.0 - Latest version loaded");
+    console.log("Selected channel ID:", channelId);
 
-    filterPlaylist(showId);
-    updateFilterBanner(showId);
-    closeShowsMenu();
+    filterPlaylist(channelId);
+    updateFilterBanner(channelId);
+    closeChannelsMenu();
 
     // Copy URL with show filter to clipboard
     const url = new URL(window.location.href);
-    if (showId === null) {
+    if (channelId === null) {
       // Clear search for "All Shows"
       url.search = "";
     } else {
       // Set search to just the show ID
-      url.search = `?${showId}`;
+      url.search = `?${channelId}`;
     }
 
     const urlToCopy = url.toString();
-    console.log('📋 Copying URL to clipboard:', urlToCopy);
+    console.log("📋 Copying URL to clipboard:", urlToCopy);
 
     // Copy to clipboard
-    navigator.clipboard.writeText(urlToCopy)
+    navigator.clipboard
+      .writeText(urlToCopy)
       .then(() => {
-        console.log('✅ URL copied successfully!');
+        console.log("✅ URL copied successfully!");
       })
-      .catch(err => {
-        console.error('❌ Failed to copy URL to clipboard:', err);
+      .catch((err) => {
+        console.error("❌ Failed to copy URL to clipboard:", err);
       });
 
     // Also update browser URL
     window.history.pushState({}, "", url.toString());
-    console.log('🔗 Browser URL updated');
+    console.log("🔗 Browser URL updated");
 
     // Reset to intro and start playing first episode
     currentIndex = -1;
@@ -746,24 +766,24 @@
     container.appendChild(introSlide);
 
     // Auto-advance to first episode and play
-    console.log('Filtered playlist has', playlist.stories.length, 'stories');
+    console.log("Filtered playlist has", playlist.drops.length, "drops");
     setTimeout(() => {
-      if (playlist.stories.length > 0) {
-        console.log('Auto-advancing to first episode...');
+      if (playlist.drops.length > 0) {
+        console.log("Auto-advancing to first episode...");
         goToSlide(0, true);
       } else {
-        console.warn('⚠️ No stories found after filtering!');
+        console.warn("⚠️ No drops found after filtering!");
       }
     }, 300);
   }
 
   // Open/close shows menu
-  function openShowsMenu() {
+  function openChannelsMenu() {
     document.getElementById("shows-menu").classList.add("active");
-    buildShowsMenu();
+    buildChannelsMenu();
   }
 
-  function closeShowsMenu() {
+  function closeChannelsMenu() {
     document.getElementById("shows-menu").classList.remove("active");
 
     // If changes were made, reapply filter to show only followed shows
@@ -771,8 +791,8 @@
       menuChangesMade = false;
 
       // Filter to show only followed shows
-      playlist.stories = playlist.allStories.filter(
-        (story) => isShowFollowed(story.showId)
+      playlist.drops = playlist.allDrops.filter((story) =>
+        isChannelFollowed(story.channelId)
       );
 
       // Reset to intro and restart
@@ -789,7 +809,11 @@
       const introSlide = createIntroSlide();
       container.appendChild(introSlide);
 
-      console.log('✅ Filter updated - showing', playlist.stories.length, 'followed stories');
+      console.log(
+        "✅ Filter updated - showing",
+        playlist.drops.length,
+        "followed drops"
+      );
     }
   }
 
@@ -804,7 +828,7 @@
       // Space: Toggle playback
       if (e.code === "Space") {
         e.preventDefault();
-        if (currentIndex >= 0 && currentIndex < playlist.stories.length) {
+        if (currentIndex >= 0 && currentIndex < playlist.drops.length) {
           const currentSlide = document.querySelector(
             `.episode-slide[data-index="${currentIndex}"]`
           );
@@ -835,7 +859,7 @@
       // Right Arrow: Next story
       if (e.code === "ArrowRight") {
         e.preventDefault();
-        if (currentIndex < playlist.stories.length) {
+        if (currentIndex < playlist.drops.length) {
           goToSlide(currentIndex + 1, isPlaying);
         }
       }
@@ -862,16 +886,16 @@
     // Setup menu button
     menuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      openShowsMenu();
+      openChannelsMenu();
     });
     document
       .getElementById("close-menu-btn")
-      .addEventListener("click", closeShowsMenu);
+      .addEventListener("click", closeChannelsMenu);
 
     // Setup clear filter button
     document
       .getElementById("clear-filter-btn")
-      .addEventListener("click", () => selectShow(null));
+      .addEventListener("click", () => selectChannel(null));
   }
 
   // Show error
@@ -885,13 +909,13 @@
   // Initialize
   async function init() {
     try {
-      loadUnfollowedShows(); // Load unfollowed shows from localStorage
+      loadUnfollowedChannels(); // Load unfollowed channels from localStorage
       await populatePlaylist();
       const filterApplied = applyUrlFilter(); // Apply URL-based filter if present
       render();
 
       // If filter was applied from URL, auto-advance to first episode
-      if (filterApplied && playlist.stories.length > 0) {
+      if (filterApplied && playlist.drops.length > 0) {
         setTimeout(() => {
           goToSlide(0, true);
         }, 300);
