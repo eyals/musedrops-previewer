@@ -1,19 +1,9 @@
 # Podcast RSS Previewer
 
-Internal testing utility to preview podcast RSS feeds from the MuseDrops API.
+Internal testing utility to preview stream from the MuseDrops API.
 
-## Usage
 
-Open `index.html` in a browser with the show name as a URL parameter:
 
-```
-index.html?the-mindful-warrior
-```
-
-This fetches the RSS from:
-```
-https://api-dev.musedrops.com/shows/the-mindful-warrior/rss
-```
 
 ## Running Locally
 
@@ -28,7 +18,7 @@ python -m http.server 8000
 
 ## Features
 
-- Displays channel artwork, title, and description
+- Displays show artwork, title, and description
 - Lists all episodes with thumbnails and subtitles
 - Audio player with play/pause, seek, and time display
 - Only one episode plays at a time

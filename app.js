@@ -4,8 +4,8 @@
   let playlist = {
     drops: [],
     allDrops: [],
-    channels: [],
-    currentChannel: null,
+    shows: [],
+    currentShow: null,
     title: "Musedrops",
     image: "",
   };
@@ -32,7 +32,7 @@
     return `${sign}${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  // Load all channels and their drops
+  // Load all shows and their drops
   async function loadPlaylist() {
     // Load stream (bypass cache)
     const response = await fetch(`${API_BASE}/stream?page_size=50`, {
@@ -51,26 +51,26 @@
 
     if (drops.length === 0) {
       console.warn("No drops found in stream response");
-      return { drops: [], channels: [] };
+      return { drops: [], shows: [] };
     }
 
-    // Build channel list from unique channel slugs in drops
-    const channelsMap = new Map();
+    // Build show list from unique show slugs in drops
+    const showsMap = new Map();
     const allDrops = [];
 
     // Process each drop
     for (const drop of drops) {
-      // Add channel to map if not already present
-      if (drop.chSlug && !channelsMap.has(drop.chSlug)) {
-        channelsMap.set(drop.chSlug, {
-          id: drop.chSlug,
-          title: drop.chName || "Unknown Channel",
-          image: `${API_BASE}/channels/${drop.chSlug}/image?size=70`,
+      // Add show to map if not already present
+      if (drop.showSlug && !showsMap.has(drop.showSlug)) {
+        showsMap.set(drop.showSlug, {
+          id: drop.showSlug,
+          title: drop.showName || "Unknown Show",
+          image: `${API_BASE}/shows/${drop.showSlug}/image?size=70`,
         });
 
-        console.log("🎯 Discovered channel:", {
-          channelId: drop.chSlug,
-          title: drop.chName,
+        console.log("🎯 Discovered show:", {
+          showId: drop.showSlug,
+          title: drop.showName,
         });
       }
 
@@ -79,10 +79,10 @@
         id: drop.slug,
         title: drop.title || "Untitled",
         image: `${API_BASE}/drops/${drop.slug}/image`,
-        audioUrl: `${API_BASE}/drops/${drop.slug}/audio`,
+        audioUrl: `${API_BASE}/drops/${drop.slug}/audio?external=true`,
         published: drop.published || "",
-        channelId: drop.chSlug,
-        channelTitle: drop.chName || "Unknown Channel",
+        showId: drop.showSlug,
+        showTitle: drop.showName || "Unknown Show",
       };
 
       allDrops.push(dropObj);
@@ -90,12 +90,12 @@
 
     console.log("📊 Stream loaded:", {
       dropsCount: allDrops.length,
-      channelsCount: channelsMap.size,
+      showsCount: showsMap.size,
     });
 
     return {
       drops: allDrops,
-      channels: Array.from(channelsMap.values()),
+      shows: Array.from(showsMap.values()),
     };
   }
 
@@ -103,82 +103,76 @@
   async function populatePlaylist() {
     const data = await loadPlaylist();
     playlist.allDrops = data.drops;
-    playlist.channels = data.channels;
+    playlist.shows = data.shows;
 
-    // Filter out unfollowed channels
-    playlist.drops = data.drops.filter((drop) =>
-      isChannelFollowed(drop.channelId)
-    );
+    // Filter out unfollowed shows
+    playlist.drops = data.drops.filter((drop) => isShowFollowed(drop.showId));
 
     // Set playlist title and image from first drop if available
     if (playlist.drops.length > 0) {
-      playlist.title = playlist.drops[0].channelTitle || "Musedrops";
+      playlist.title = playlist.drops[0].showTitle || "Musedrops";
       playlist.image = playlist.drops[0].image || "";
     }
 
     console.log(
-      "📚 Loaded channels:",
-      playlist.channels.map((c) => ({ id: c.id, title: c.title }))
+      "📚 Loaded shows:",
+      playlist.shows.map((c) => ({ id: c.id, title: c.title }))
     );
     console.log("📖 Total drops:", playlist.allDrops.length);
     console.log("✅ Followed drops:", playlist.drops.length);
   }
 
-  // Filter playlist by channel
-  function filterPlaylist(channelId) {
-    if (channelId === null) {
+  // Filter playlist by show
+  function filterPlaylist(showId) {
+    if (showId === null) {
       // Show all followed drops (respect unfollowed list)
       playlist.drops = playlist.allDrops.filter((drop) =>
-        isChannelFollowed(drop.channelId)
+        isShowFollowed(drop.showId)
       );
-      playlist.currentChannel = null;
+      playlist.currentShow = null;
     } else {
-      // Filter by channel
-      console.log("🔍 Filtering by channelId:", channelId);
-      console.log("Available channel IDs in drops:", [
-        ...new Set(playlist.allDrops.map((d) => d.channelId)),
+      // Filter by show
+      console.log("🔍 Filtering by showId:", showId);
+      console.log("Available show IDs in drops:", [
+        ...new Set(playlist.allDrops.map((d) => d.showId)),
       ]);
 
       playlist.drops = playlist.allDrops.filter(
-        (drop) => drop.channelId === channelId
+        (drop) => drop.showId === showId
       );
-      playlist.currentChannel = channelId;
+      playlist.currentShow = showId;
 
-      console.log(
-        `Found ${playlist.drops.length} drops for channel ${channelId}`
-      );
+      console.log(`Found ${playlist.drops.length} drops for show ${showId}`);
     }
   }
 
-  // Apply URL-based filter if channel slug is in URL
+  // Apply URL-based filter if show slug is in URL
   function applyUrlFilter() {
     // Get search param without the '?'
     const searchParam = window.location.search.replace("?", "");
 
     if (!searchParam) {
-      console.log("No search param in URL - showing all channels");
+      console.log("No search param in URL - showing all shows");
       return false;
     }
 
-    // Check if search param matches a channel ID exactly
-    const matchingChannel = playlist.channels.find(
-      (channel) => channel.id === searchParam
-    );
+    // Check if search param matches a show ID exactly
+    const matchingShow = playlist.shows.find((show) => show.id === searchParam);
 
-    if (matchingChannel) {
-      console.log("✅ Found matching channel from URL:", searchParam);
-      filterPlaylist(matchingChannel.id);
-      updateFilterBanner(matchingChannel.id);
+    if (matchingShow) {
+      console.log("✅ Found matching show from URL:", searchParam);
+      filterPlaylist(matchingShow.id);
+      updateFilterBanner(matchingShow.id);
       return true;
     }
 
     console.log(
-      "⚠️ Channel ID not found in URL:",
+      "⚠️ Show ID not found in URL:",
       searchParam,
-      "- showing all channels"
+      "- showing all shows"
     );
     updateFilterBanner(null);
-    return false; // Don't filter if channel not found
+    return false; // Don't filter if show not found
   }
 
   // Create intro slide
@@ -232,7 +226,7 @@
             }</button>
             <div class="episode-content">
                 <div class="show-title">${
-                  drop.channelTitle || playlist.title
+                  drop.showTitle || playlist.title
                 }</div>
                 <h1 class="episode-title">${drop.title}</h1>
             </div>
@@ -267,7 +261,7 @@
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: drop.title,
-      artist: drop.channelTitle || playlist.title,
+      artist: drop.showTitle || playlist.title,
       album: playlist.title,
       artwork: [{ src: imgSrc, sizes: "512x512", type: "image/jpeg" }],
     });
@@ -609,129 +603,129 @@
     }, 350);
   }
 
-  // LocalStorage management for unfollowed channels
-  const UNFOLLOWED_CHANNELS_KEY = "musedrops_unfollowed_channels";
-  let unfollowedChannels = new Set();
+  // LocalStorage management for unfollowed shows
+  const UNFOLLOWED_CHANNELS_KEY = "musedrops_unfollowed_shows";
+  let unfollowedShows = new Set();
   let menuChangesMade = false;
 
-  function loadUnfollowedChannels() {
+  function loadUnfollowedShows() {
     try {
       const stored = localStorage.getItem(UNFOLLOWED_CHANNELS_KEY);
-      unfollowedChannels = stored ? new Set(JSON.parse(stored)) : new Set();
+      unfollowedShows = stored ? new Set(JSON.parse(stored)) : new Set();
     } catch (error) {
-      console.warn("Failed to load unfollowed channels:", error);
-      unfollowedChannels = new Set();
+      console.warn("Failed to load unfollowed shows:", error);
+      unfollowedShows = new Set();
     }
   }
 
-  function saveUnfollowedChannels() {
+  function saveUnfollowedShows() {
     try {
       localStorage.setItem(
         UNFOLLOWED_CHANNELS_KEY,
-        JSON.stringify([...unfollowedChannels])
+        JSON.stringify([...unfollowedShows])
       );
     } catch (error) {
-      console.warn("Failed to save unfollowed channels:", error);
+      console.warn("Failed to save unfollowed shows:", error);
     }
   }
 
-  function toggleFollowChannel(channelId) {
-    if (unfollowedChannels.has(channelId)) {
-      unfollowedChannels.delete(channelId);
+  function toggleFollowShow(showId) {
+    if (unfollowedShows.has(showId)) {
+      unfollowedShows.delete(showId);
     } else {
-      unfollowedChannels.add(channelId);
+      unfollowedShows.add(showId);
     }
-    saveUnfollowedChannels();
+    saveUnfollowedShows();
     menuChangesMade = true;
   }
 
-  function isChannelFollowed(channelId) {
-    return !unfollowedChannels.has(channelId);
+  function isShowFollowed(showId) {
+    return !unfollowedShows.has(showId);
   }
 
-  // Build channels menu
-  function buildChannelsMenu() {
-    const channelsGrid = document.getElementById("shows-grid");
-    channelsGrid.innerHTML = "";
+  // Build shows menu
+  function buildShowsMenu() {
+    const showsGrid = document.getElementById("shows-grid");
+    showsGrid.innerHTML = "";
 
-    // Add individual channels
-    playlist.channels.forEach((channel) => {
-      const channelItem = document.createElement("div");
-      channelItem.className = "show-item";
+    // Add individual shows
+    playlist.shows.forEach((show) => {
+      const showItem = document.createElement("div");
+      showItem.className = "show-item";
 
-      const isFollowed = isChannelFollowed(channel.id);
+      const isFollowed = isShowFollowed(show.id);
 
-      channelItem.innerHTML = `
+      showItem.innerHTML = `
                 <div class="show-item-content">
-                    <img class="show-image" src="${channel.image}" alt="${
-        channel.title
+                    <img class="show-image" src="${show.image}" alt="${
+        show.title
       }">
-                    <div class="show-name">${channel.title}</div>
+                    <div class="show-name">${show.title}</div>
                 </div>
                 <button class="follow-btn ${
                   !isFollowed ? "unfollowing" : ""
-                }" data-show-id="${channel.id}">
+                }" data-show-id="${show.id}">
                     ${isFollowed ? "Following" : "Follow"}
                 </button>
             `;
 
-      // Click on content area filters by channel
-      const content = channelItem.querySelector(".show-item-content");
-      content.addEventListener("click", () => selectChannel(channel.id));
+      // Click on content area filters by show
+      const content = showItem.querySelector(".show-item-content");
+      content.addEventListener("click", () => selectShow(show.id));
 
       // Click on button toggles follow/unfollow
-      const followBtn = channelItem.querySelector(".follow-btn");
+      const followBtn = showItem.querySelector(".follow-btn");
       followBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        toggleFollowChannel(channel.id);
+        toggleFollowShow(show.id);
 
         // Update button state
-        const newIsFollowed = isChannelFollowed(channel.id);
+        const newIsFollowed = isShowFollowed(show.id);
         followBtn.className = `follow-btn ${
           !newIsFollowed ? "unfollowing" : ""
         }`;
         followBtn.textContent = newIsFollowed ? "Following" : "Follow";
       });
 
-      channelsGrid.appendChild(channelItem);
+      showsGrid.appendChild(showItem);
     });
   }
 
   // Update filter banner
-  function updateFilterBanner(channelId) {
+  function updateFilterBanner(showId) {
     const banner = document.getElementById("filter-banner");
     const bannerText = document.getElementById("filter-banner-text");
 
-    if (channelId === null) {
-      // Hide banner when showing all channels
+    if (showId === null) {
+      // Hide banner when showing all shows
       banner.classList.add("hidden");
     } else {
-      // Show banner with channel name
-      const channel = playlist.channels.find((s) => s.id === channelId);
-      if (channel) {
-        bannerText.textContent = `Listening to ${channel.title}`;
+      // Show banner with show name
+      const show = playlist.shows.find((s) => s.id === showId);
+      if (show) {
+        bannerText.textContent = `Listening to ${show.title}`;
         banner.classList.remove("hidden");
       }
     }
   }
 
   // Select show and filter playlist
-  function selectChannel(channelId) {
-    console.log("🔥 selectChannel v2.0 - Latest version loaded");
-    console.log("Selected channel ID:", channelId);
+  function selectShow(showId) {
+    console.log("🔥 selectShow v2.0 - Latest version loaded");
+    console.log("Selected show ID:", showId);
 
-    filterPlaylist(channelId);
-    updateFilterBanner(channelId);
-    closeChannelsMenu();
+    filterPlaylist(showId);
+    updateFilterBanner(showId);
+    closeShowsMenu();
 
     // Copy URL with show filter to clipboard
     const url = new URL(window.location.href);
-    if (channelId === null) {
+    if (showId === null) {
       // Clear search for "All Shows"
       url.search = "";
     } else {
       // Set search to just the show ID
-      url.search = `?${channelId}`;
+      url.search = `?${showId}`;
     }
 
     const urlToCopy = url.toString();
@@ -778,12 +772,12 @@
   }
 
   // Open/close shows menu
-  function openChannelsMenu() {
+  function openShowsMenu() {
     document.getElementById("shows-menu").classList.add("active");
-    buildChannelsMenu();
+    buildShowsMenu();
   }
 
-  function closeChannelsMenu() {
+  function closeShowsMenu() {
     document.getElementById("shows-menu").classList.remove("active");
 
     // If changes were made, reapply filter to show only followed shows
@@ -792,7 +786,7 @@
 
       // Filter to show only followed shows
       playlist.drops = playlist.allDrops.filter((story) =>
-        isChannelFollowed(story.channelId)
+        isShowFollowed(story.showId)
       );
 
       // Reset to intro and restart
@@ -886,16 +880,16 @@
     // Setup menu button
     menuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      openChannelsMenu();
+      openShowsMenu();
     });
     document
       .getElementById("close-menu-btn")
-      .addEventListener("click", closeChannelsMenu);
+      .addEventListener("click", closeShowsMenu);
 
     // Setup clear filter button
     document
       .getElementById("clear-filter-btn")
-      .addEventListener("click", () => selectChannel(null));
+      .addEventListener("click", () => selectShow(null));
   }
 
   // Show error
@@ -909,7 +903,7 @@
   // Initialize
   async function init() {
     try {
-      loadUnfollowedChannels(); // Load unfollowed channels from localStorage
+      loadUnfollowedShows(); // Load unfollowed shows from localStorage
       await populatePlaylist();
       const filterApplied = applyUrlFilter(); // Apply URL-based filter if present
       render();
